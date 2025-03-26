@@ -5,6 +5,10 @@
     "cmake.generator": "Ninja",
     "files.insertFinalNewline": true,
     "files.associations": {
-        "xlocale": "cpp"
+        "xlocale": "cpp",
+        "regex": "cpp",
+        "sstream": "cpp",
+        "atomic": "cpp",
+        "ostream": "cpp"
     }
 }
