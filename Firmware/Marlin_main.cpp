@@ -268,6 +268,8 @@ float feedrate = 1500.0;
 // Original feedrate saved during homing moves
 static float saved_feedrate;
 
+float homing_feedrate[] = HOMING_FEEDRATE; //PV Neds definition in cpp not header
+
 static const int8_t sensitive_pins[] PROGMEM = SENSITIVE_PINS; // Sensitive pin list for M42
 
 //static float tt = 0;
@@ -1296,8 +1298,8 @@ void setup()
 	tmc2130_mres[Z_AXIS] = tmc2130_usteps2mres(cs.axis_ustep_resolution[Z_AXIS]);
 	tmc2130_mres[E_AXIS] = tmc2130_usteps2mres(cs.axis_ustep_resolution[E_AXIS]);
 #else //TMC2130_VARIABLE_RESOLUTION
-	tmc2130_mres[X_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_XY);
-	tmc2130_mres[Y_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_XY);
+	tmc2130_mres[X_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_X); //Kuo
+	tmc2130_mres[Y_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_Y); //Kuo //PV Fixed misconfigured X instead of Y
 	tmc2130_mres[Z_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_Z);
 	tmc2130_mres[E_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_E);
 #endif //TMC2130_VARIABLE_RESOLUTION
@@ -2131,7 +2133,7 @@ void homeaxis(uint8_t axis, uint8_t cnt)
 #ifdef TMC2130
 		uint8_t orig = tmc2130_home_origin[axis];
 		uint8_t back = tmc2130_home_bsteps[axis];
-		if (tmc2130_home_enabled && (orig <= 63))
+		if (tmc2130_home_enabled && (orig <= kHOMING_CNT_MIN)) //Kuo adjustabe for 0.9 motors
 		{
 			tmc2130_goto_step(axis, orig, 2, 1000, tmc2130_get_res(axis));
 			if (back > 0)
@@ -2581,8 +2583,8 @@ static void gcode_G28(bool home_x_axis, bool home_y_axis, bool home_z_axis)
 // G80 - Automatic mesh bed leveling
 static void gcode_G80()
 {
-    constexpr float XY_AXIS_FEEDRATE = (homing_feedrate[X_AXIS] * 3) / 60;
-    constexpr float Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 60;
+    float XY_AXIS_FEEDRATE = (homing_feedrate[X_AXIS] * 3) / 60; //PV Cannot be constexpr now
+    float Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 60; //PV Cannot be constexpr now
     constexpr float Z_CALIBRATION_THRESHOLD_TIGHT = 0.6f; // used for 7x7 MBL
     constexpr float Z_CALIBRATION_THRESHOLD_RELAXED = 1.f; // used for 3x3 MBL
     constexpr float MESH_HOME_Z_SEARCH_FAST = 0.35f;
@@ -7754,7 +7756,81 @@ void process_commands()
     }
     break;
 
+    //Kuo mCodes
+    
+    case 919: //! M919 - Set TMC2130 toff Kuo // Usage: M919 [ X | Y | Z | E ]
+    {
+        for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+          if (code_seen(axis_codes[axis])) {
+              tmc2130_chopper_config[axis].toff = code_value();
+              printf_P(_N("tmc2130_toff[%c]=%d\n"), "XYZE"[axis], tmc2130_chopper_config[axis].toff);
+              tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+          }
+        }
+    }
+    break;
+
+    case 920: //! M920 - Set TMC2130 hstr Kuo // Usage: M920 [ X | Y | Z | E ]
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            tmc2130_chopper_config[axis].hstr = code_value();
+            printf_P(_N("tmc2130_hstr[%c]=%d\n"), "XYZE"[axis], tmc2130_chopper_config[axis].hstr);
+            tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+        }
+      }
+    }
+    break;
+
+    case 921: //! M921 - Set TMC2130 hend Kuo // Usage: M921 [ X | Y | Z | E ]
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            tmc2130_chopper_config[axis].hend = code_value();
+            printf_P(_N("tmc2130_hend[%c]=%d\n"), "XYZE"[axis], tmc2130_chopper_config[axis].hend);
+            tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+        }
+      }
+    }
+    break;
+    
+    case 922: //! M922 - Set TMC2130 tbl Kuo // Usage: M922 [ X | Y | Z | E ]
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            tmc2130_chopper_config[axis].tbl = code_value();
+            printf_P(_N("tmc2130_tbl[%c]=%d\n"), "XYZE"[axis], tmc2130_chopper_config[axis].tbl);
+            tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+        }
+      }
+    }
+    break;    
+    //end Kuo m-Codes enabled by TMC2130_SERVICE_CODES_M910_M918 ===
+
 #endif //TMC2130_SERVICE_CODES_M910_M918
+
+    case 924: //! M924 - Set sg_thrs_home Kuo // Usage: M924 [ X | Y | Z | E ]
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            tmc2130_sg_thr_home[axis] = code_value();
+            printf_P(_N("tmc2130_sg_thr_home[%c]=%d\n"), "XYZE"[axis], tmc2130_sg_thr_home[axis]);
+        }
+      }
+    }
+    break;
+
+    case 925: //! M925 - Set homing feed rate Kuo // Usage: M925 [ X | Y | Z ]
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS-1; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            homing_feedrate[axis] = code_value();
+            printf_P(_N("homing_feedrate[%c]=%d\n"), "XYZE"[axis], homing_feedrate[axis]);
+        }
+      }
+    }
+    break;
+
 #endif // TMC2130
 
     /*!

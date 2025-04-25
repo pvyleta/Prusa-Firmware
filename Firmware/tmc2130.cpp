@@ -31,11 +31,23 @@ static constexpr uint8_t default_dedge_bit = 0;
 //mode
 uint8_t tmc2130_mode = TMC2130_MODE_NORMAL;
 
-static constexpr uint8_t tmc2130_default_current_h[4] = TMC2130_CURRENTS_H;
+//static constexpr uint8_t tmc2130_default_current_h[4] = TMC2130_CURRENTS_H; //PV moving to header
 //running currents
-static constexpr uint8_t tmc2130_default_current_r[4] = TMC2130_CURRENTS_R;
+//static constexpr uint8_t tmc2130_default_current_r[4] = TMC2130_CURRENTS_R; //PV moving to header
 //running currents for homing
-static constexpr uint8_t tmc2130_current_r_home[4] = TMC2130_CURRENTS_R_HOME;
+//Kuo running currents for homing
+#ifndef X_AXIS_MOTOR_09 //Kuo
+  #define X_AXIS_current_r_home 8
+#else 
+  #define X_AXIS_current_r_home 10  //Kuo adjust x homing current slightly higher for 0.9 x
+#endif
+#ifndef Y_AXIS_MOTOR_09 //Kuo
+  #define Y_AXIS_current_r_home 10
+#else 
+  #define Y_AXIS_current_r_home 12  //Kuo adjust y homing current slightly higher for 0.9 y
+#endif
+static constexpr uint8_t  tmc2130_current_r_home[4] = {X_AXIS_current_r_home, Y_AXIS_current_r_home, 20, 18};
+//Kuo ===
 
 static constexpr MotorCurrents homing_currents_P[NUM_AXIS] PROGMEM = {
 	MotorCurrents(tmc2130_current_r_home[0], tmc2130_current_r_home[0]),
@@ -71,7 +83,7 @@ union ChopConfU {
 		uint32_t diss2g : 1;   // Short to GND protection disable
 		uint32_t reserved : 1; // Reserved, set to 0
 		constexpr S(bool vsense, uint8_t mres)
-			: toff(TMC2130_TOFF_XYZ)
+			: toff(TMC2130_TOFF_X) //PV this is just default, it is OK that we use different values per axis elsewhere
 			, hstrt(5)
 			, hend(1)
 			, fd(0)
@@ -139,7 +151,7 @@ static constexpr PWMConfU pwmconf_Ecool = PWMConfU(PWMCONF_REG(TMC2130_PWM_AMPL_
 uint8_t tmc2130_mres[4] = {0, 0, 0, 0}; //will be filed at begin of init
 
 uint8_t tmc2130_sg_thr[4] = {TMC2130_SG_THRS_X, TMC2130_SG_THRS_Y, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E};
-static uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME;
+uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME; //PV Cannot be static
 
 
 uint8_t tmc2130_sg_homing_axes_mask = 0x00;
@@ -159,24 +171,24 @@ uint8_t tmc2130_wave_fac[4] = {0, 0, 0, 0};
 
 tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 	{ // X axis
-		.toff = TMC2130_TOFF_XYZ,
-		.hstr = 5,
-		.hend = 1,
-		.tbl = 2,
+		.toff = TMC2130_TOFF_X,
+		.hstr = TMC2130_HSTR_X,
+		.hend = TMC2130_HEND_X,
+		.tbl = TMC2130_TBL_X,
 		.res = 0
 	},
 	{ // Y axis
-		.toff = TMC2130_TOFF_XYZ,
-		.hstr = 5,
-		.hend = 1,
-		.tbl = 2,
+		.toff = TMC2130_TOFF_Y,
+		.hstr = TMC2130_HSTR_Y,
+		.hend = TMC2130_HEND_Y,
+		.tbl = TMC2130_TBL_Y,
 		.res = 0
 	},
 	{ // Z axis
-		.toff = TMC2130_TOFF_XYZ,
-		.hstr = 5,
-		.hend = 1,
-		.tbl = 2,
+		.toff = TMC2130_TOFF_Z,
+		.hstr = TMC2130_HSTR_Z,
+		.hend = TMC2130_HEND_Z,
+		.tbl = TMC2130_TBL_Z,
 		.res = 0
 	},
 #ifdef TMC2130_CNSTOFF_E
@@ -184,15 +196,15 @@ tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 		.toff = TMC2130_TOFF_E,
 		.hstr = 0,
 		.hend = 0,
-		.tbl = 2,
+		.tbl = TMC2130_TBL_E,
 		.res = 0
 	}
 #else // !TMC2130_CNSTOFF_E
 	{ // E axis
 		.toff = TMC2130_TOFF_E,
-		.hstr = 5,
-		.hend = 1,
-		.tbl = 2,
+		.hstr = TMC2130_HSTR_E,
+		.hend = TMC2130_HEND_E,
+		.tbl = TMC2130_TBL_E,
 		.res = 0
 	}
 #endif

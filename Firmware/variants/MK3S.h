@@ -17,7 +17,7 @@
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "Prusa i3 MK3S"
+#define CUSTOM_MENDEL_NAME "Prusa i3 MK3S 0.9" //Kuo can put your own printer name here
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
@@ -38,10 +38,120 @@
 /*------------------------------------
  AXIS SETTINGS
  *------------------------------------*/
+//CLX---
+//Geared extruders now set for lower microstepping to avoid overruning EINSY during fast retracts or MMU2S filament moves. 
+//Factory reset and delete all data after installing this firmware. Otherwise EEPROM settings override settings in this firmware.
+//After installing this firmware, send M350 and M92 commands to force correct micro-stepping and e-step rates. M350 must be first
+//because M350 command will sometimes alter existing M92 setting
+//
+//e-steps values for M92 depend on your extruder gearing.
+//xxx = 280 for non-geared extruder
+//xxx = 415 for BMG extruder (special Bondtech compensated value)
+//xxx = 420 for 3:1 extruder
+//xxx = 473 for BNBSX with 54:16 gearing
+//xxx = 490 for BNBSX, Short Ears, Skelestruder with 56:16 gearing
+//
+//non-geared extruder, 1.8 degree motor
+//M350 E32
+//M92 E280
+//M500
+//
+//non-geared extruder, 0.9 degree motor
+//M350 E16
+//M92 E280
+//M500
+//
+//geared extruder, 1.8 degree motor
+//M350 E16
+//M92 Exxx
+//M500
+//
+//geared extruder, 0.9 degree motor
+//M350 E8
+//M92 Exxx
+//M500
+//
+//Follow with power off/on and M503 to verify settings are correct.
+//CLX---
+
+//====== Kuo Uncommented def(s) below specify 0.9 degree stepper motors on x, y, z, e axis
+//Motors used should be 1 amp or lower current rating to avoid overheating TMC2130 drivers in Stealthchop.
+//Kuo recommended 0.9 degree motors for X, Y, or direct drive E are Moons MS17HA2P4100 or OMC 17HM15-0904S 
+//
+//#define X_AXIS_MOTOR_09 //kuo exper X axis
+//#define Y_AXIS_MOTOR_09 //kuo exper Y axis
+//#define Z_AXIS_MOTOR_09 //kuo exper Z axis
+//#define E_AXIS_MOTOR_09 //kuo exper EXTRUDER
+
+//====== CLX Motor Options
+//#define MOONS // Set for Moons MS17HA2P4100 0.9° steppers - Sets HOMING_FEEDRATE
+//#define OMC // Set for OMC-Stepperonline 17HM15-0904S 0.9° stepper - Sets HOMING_FEEDRATE
+
+//====== CLX Bear X-Axis Support
+//#define BEAR_X_AXIS //uncomment to adjust Z_MAX_POS to 202 to accomodate 8 mm greater BEAR X-Axis extruder height
+
+//====== Kuo Uncomment ONLY ONE or NONE of below for geared extruders
+//Don't forget to also send gcode to set e-steps as detailed earlier
+//
+//#define SKELESTRUDER // Uncomment if you have a 3.5 ratio Skelestruder. Also applies the patches for load distances and Z height.
+//#define BONDTECH_PRUSA_UPGRADE_MK3 //Kuo Uncomment for Bondtech MK3 extruder upgrade. 3:1 extruder. This also sets Z_MAX_POS 205.
+//#define BONDTECH_PRUSA_UPGRADE_MK3S //Kuo Uncomment for Bondtech MK3S extruder upgrade. (Note the S!!!!) 3:1 extruder. This also sets Z_MAX_POS 205.
+//#define EXTRUDER_GEARRATIO_30 //Kuo Uncomment for extruder with gear ratio 3.0. 
+//#define EXTRUDER_GEARRATIO_3375 //Kuo Uncomment for extruder with gear ratio 3.375 like 54:16 BNBSX.
+//#define EXTRUDER_GEARRATIO_35 //Kuo Uncomment for extruder with gear ratio 3.5 like 56:16 Bunny and Bear Short Ears.
+
+//====== Kuo E3D Volcano Support
+//#define E3D_VOLCANO //uncomment to adjust Z_MAX_POS to accomodate 8.5 mm greater Volcano extruder height
+
+//====== Kuo Slice Support
+//#define SLICETHERMISTOR //uncomment for Slice Thermistor
+
+//---------------------------- Kuo End of defines one normally needs to change ----------------------------
+
+#ifdef X_AXIS_MOTOR_09 //Kuo adjust min acceptable homing count for 0.9 motors
+  #define kHOMING_CNT_MIN 10 //0.9 motors often home at much lower count
+#elif defined(Y_AXIS_MOTOR_09)
+  #define kHOMING_CNT_MIN 10
+#else
+  #define kHOMING_CNT_MIN 63 //original was 63 for 1.8 motors
+#endif //---Kuo
 
 // Steps per unit {X,Y,Z,E}
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,280}
 
+#ifdef SKELESTRUDER
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,490} //Skelestruder 3.5 geared extruder 
+  #define TMC2130_UNLOAD_CURRENT_R 20  //higher unload current than stock for M600
+  #define EXTRUDER_GEARED
+  
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3)
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,415} //Bondtech upgrade MK3 approx 3:1 geared extruder
+  #define TMC2130_UNLOAD_CURRENT_R 20 //BMG unload current for M600
+  #define EXTRUDER_GEARED
+  
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3S)
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,415} //Bondtech upgrade MK3S (Note the S!!!!) approx 3:1 geared extruder
+  #define TMC2130_UNLOAD_CURRENT_R 20 //BMG unload current for M600
+  #define EXTRUDER_GEARED
+
+#elif defined(EXTRUDER_GEARRATIO_30)
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,420} //3.0 geared extruder 
+  #define TMC2130_UNLOAD_CURRENT_R 20  //higher unload current than stock for M600
+  #define EXTRUDER_GEARED
+
+#elif defined(EXTRUDER_GEARRATIO_3375)
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,473} //3.375 geared extruder like 54:16 BNBSX
+  #define TMC2130_UNLOAD_CURRENT_R 20  //higher unload current thans stock for M600 
+  #define EXTRUDER_GEARED
+
+#elif defined(EXTRUDER_GEARRATIO_35)
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,490} //3.5 geared extruder like 56:16 BNBSX
+  #define TMC2130_UNLOAD_CURRENT_R 20  //higher unload current thans stock for M600 
+  #define EXTRUDER_GEARED
+
+#else
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,280} //default steps/unit e-axis
+  #define TMC2130_UNLOAD_CURRENT_R 12  //lower current for M600 to protect filament sensor with stock extruder
+#endif
 // Endstop inverting
 #define X_MIN_ENDSTOP_INVERTING 0 // set to 1 to invert the logic of the endstop.
 #define Y_MIN_ENDSTOP_INVERTING 0 // set to 1 to invert the logic of the endstop.
@@ -63,7 +173,19 @@
 #define X_MIN_POS 0
 #define Y_MAX_POS 212.5
 #define Y_MIN_POS -4 //orig -4
-#define Z_MAX_POS 210
+#ifdef SKELESTRUDER //kuo Skelestruder height
+  #define Z_MAX_POS 220
+#elif defined(BEAR_X_AXIS)//CLX Bear X-Axis height with BMG extruder
+  #define Z_MAX_POS 202
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3) //kuo BMG height
+  #define Z_MAX_POS 205
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3S)//kuo BMG height
+  #define Z_MAX_POS 205
+#elif defined(E3D_VOLCANO)//kuo Volcano height
+  #define Z_MAX_POS 202
+#else
+  #define Z_MAX_POS 210 //default height
+#endif
 #define Z_MIN_POS 0.15
 
 // Z height correction value
@@ -80,7 +202,25 @@
 #define Z_PAUSE_LIFT 20
 
 #define NUM_AXIS 4 // The axis order in all axis related arrays is X, Y, Z, E
-#define HOMING_FEEDRATE {3000, 3000, 800, 0}  // set the homing speeds (mm/min) // 3000 is also valid for stallGuard homing. Valid range: 2200 - 3000
+//Kuo set the homing speeds (mm/min)
+//latest measurements suggest OMC at 2500 and Moons at 2400
+#if defined(X_AXIS_MOTOR_09) && defined(MOONS)
+  #define HOMING_FEEDRATE_X 2400  // Kuo different feedrate needed for reliable X 0.9 degree motor stallGuard
+#elif defined(X_AXIS_MOTOR_09) && defined(OMC)
+  #define HOMING_FEEDRATE_X 2500
+#else
+  #define HOMING_FEEDRATE_X 3000
+#endif
+
+#if defined(Y_AXIS_MOTOR_09) && defined(MOONS)
+  #define HOMING_FEEDRATE_Y 2400  // Kuo different feedrate needed for reliable Y 0.9 degree motor stallGuard
+#elif defined(Y_AXIS_MOTOR_09) && defined(OMC)
+  #define HOMING_FEEDRATE_Y 2500
+#else
+  #define HOMING_FEEDRATE_Y 3000
+#endif
+
+#define HOMING_FEEDRATE {HOMING_FEEDRATE_X, HOMING_FEEDRATE_Y, 800, 0}  //Kuo use defined feedrates for reliable X AND Y 0.9 degree motor stallGuard
 
 //#define DEFAULT_Y_OFFSET    4.f // Default distance of Y_MIN_POS point from endstop, when the printer is not calibrated.
 /**
@@ -218,31 +358,87 @@
 
 #define TMC2130_FCLK 12000000       // fclk = 12MHz
 
-#define TMC2130_USTEPS_XY   16        // microstep resolution for XY axes
-#define TMC2130_USTEPS_Z    16        // microstep resolution for Z axis
-#define TMC2130_USTEPS_E    32        // microstep resolution for E axis
+// Kuo independently define x y and e microsteps for stepper type
+#ifndef X_AXIS_MOTOR_09
+  #define TMC2130_USTEPS_X   16
+#else
+  #define TMC2130_USTEPS_X   8  // Kuo reduce X microsteps to 8 because EINSY cannot keep up with 16 on 0.9 degree motor
+#endif
+
+#ifndef Y_AXIS_MOTOR_09
+  #define TMC2130_USTEPS_Y   16
+#else
+  #define TMC2130_USTEPS_Y   8  // Kuo reduce Y microsteps to 8 because EINSY cannot keep up with 16 on 0.9 degree motor
+#endif
+
+#ifndef Z_AXIS_MOTOR_09
+  #define TMC2130_USTEPS_Z   16
+#else
+  #define TMC2130_USTEPS_Z  8  // Kuo reduce Z microsteps to 8 because EINSY cannot keep up with 16 on 0.9 degree motor
+#endif
+
+#ifndef EXTRUDER_GEARED
+  #ifndef E_AXIS_MOTOR_09
+    #define TMC2130_USTEPS_E 32 // Kuo 1.8 motor, non-geared
+  #else
+    #define TMC2130_USTEPS_E 16 // Kuo 0.9 motor, non-geared
+  #endif
+#else
+  #ifndef E_AXIS_MOTOR_09
+    #define TMC2130_USTEPS_E 16 // Kuo 1.8 motor, geared extruder
+  #else
+    #define TMC2130_USTEPS_E 8 // Kuo 0.9 motor, geared extruder
+  #endif
+#endif //Kuo ========
+
 #define TMC2130_INTPOL_XY   1         // extrapolate 256 for XY axes
 #define TMC2130_INTPOL_Z    1         // extrapolate 256 for Z axis
 #define TMC2130_INTPOL_E    1         // extrapolate 256 for E axis
 // #define ALLOW_ALL_MRES
 
-#define TMC2130_PWM_GRAD_X  2         // PWMCONF
-#define TMC2130_PWM_AMPL_X  230       // PWMCONF
+///Kuo TMC2130_PWM_GRAD & TMC2130_PWM_AMP tuned for 09 motor.
+//Better axis motion control with lower TMC2130_PWM_GRAD 2,3,4 but can squeak during fast declerations.
+//TMC2130_PWM_GRAD too high causes y-layer shifts
+//TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y. 
+//Raised TMC2130_PWM_AMPL_Y to 250 to prevent y-layer shifts on weaker motors
+
+#ifndef X_AXIS_MOTOR_09
+  #define TMC2130_PWM_GRAD_X  2       // PWM_GRAD 
+  #define TMC2130_PWM_AMPL_X  230     // PWMCONF
+#else
+  #define TMC2130_PWM_GRAD_X  4       // PWM_GRAD Kuo 0.9 degree motor tuning
+  #define TMC2130_PWM_AMPL_X  235     // PWMCONF Kuo 0.9 degree motor tuning
+#endif
 #define TMC2130_PWM_AUTO_X  1         // PWMCONF
 #define TMC2130_PWM_FREQ_X  2         // PWMCONF
 
-#define TMC2130_PWM_GRAD_Y  2         // PWMCONF
-#define TMC2130_PWM_AMPL_Y  235       // PWMCONF
+#ifndef Y_AXIS_MOTOR_09
+  #define TMC2130_PWM_GRAD_Y  2       // PWM_GRAD 
+  #define TMC2130_PWM_AMPL_Y  235     // PWMCONF
+#else
+  #define TMC2130_PWM_GRAD_Y  4       // PWM_GRAD Kuo 0.9 degree motor tuning         
+  #define TMC2130_PWM_AMPL_Y  250     // PWMCONF Kuo 0.9 degree motor tuning
+#endif
 #define TMC2130_PWM_AUTO_Y  1         // PWMCONF
 #define TMC2130_PWM_FREQ_Y  2         // PWMCONF
 
-#define TMC2130_PWM_GRAD_Z  4         // PWMCONF
-#define TMC2130_PWM_AMPL_Z  200       // PWMCONF
+#ifndef Z_AXIS_MOTOR_09
+  #define TMC2130_PWM_GRAD_Z  4         // PWMCONF
+  #define TMC2130_PWM_AMPL_Z  200       // PWMCONF
+#else
+  #define TMC2130_PWM_GRAD_Z  4         // PWM_GRAD Kuo 0.9 degree motor tuning
+  #define TMC2130_PWM_AMPL_Z  200       // PWMCONF Kuo 0.9 degree motor tuning
+#endif
 #define TMC2130_PWM_AUTO_Z  1         // PWMCONF
 #define TMC2130_PWM_FREQ_Z  2         // PWMCONF
 
-#define TMC2130_PWM_GRAD_E  4         // PWMCONF
-#define TMC2130_PWM_AMPL_E  240       // PWMCONF
+#ifndef E_AXIS_MOTOR_09
+  #define TMC2130_PWM_GRAD_E  4       // PWM_GRAD 
+  #define TMC2130_PWM_AMPL_E  240     // PWMCONF
+#else
+  #define TMC2130_PWM_GRAD_E  4       // PWM_GRAD Kuo 0.9 degree motor tuning         
+  #define TMC2130_PWM_AMPL_E  245     // PWMCONF Kuo 0.9 degree motor tuning
+#endif
 #define TMC2130_PWM_AUTO_E  1         // PWMCONF
 #define TMC2130_PWM_FREQ_E  2         // PWMCONF
 
@@ -251,11 +447,60 @@
 #define TMC2130_PWM_AMPL_Ecool  43        // PWMCONF 500mA phase peak at feedrate 10 mm/min
 #define TMC2130_PWM_AUTO_Ecool  0         // PWMCONF
 
-#define TMC2130_TOFF_XYZ    3         // CHOPCONF // fchop = 27.778kHz
-#define TMC2130_TOFF_E      3         // CHOPCONF // fchop = 27.778kHz
+//Kuo begin chopper defines with adjustments for 0.9 motors on x y z e
+//#define TMC2130_TOFF_XYZ    3         // CHOPCONF // fchop = 27.778kHz //Kuo Default
+//#define TMC2130_TOFF_E      3         // CHOPCONF // fchop = 27.778kHz //Kuo Default all 1.8 steppers
 //#define TMC2130_TOFF_E      4         // CHOPCONF // fchop = 21.429kHz
 //#define TMC2130_TOFF_E      5         // CHOPCONF // fchop = 17.442kHz
 
+#ifndef X_AXIS_MOTOR_09
+  #define TMC2130_TOFF_X 3 // Prusa defaults X
+  #define TMC2130_HSTR_X 5
+  #define TMC2130_HEND_X 1
+  #define TMC2130_TBL_X 2
+#else
+  #define TMC2130_TOFF_X 2 // Kuo adjusted for 0.9 degree motors
+  #define TMC2130_HSTR_X 2
+  #define TMC2130_HEND_X 0
+  #define TMC2130_TBL_X 2
+#endif
+
+#ifndef Y_AXIS_MOTOR_09 
+  #define TMC2130_TOFF_Y 3 // Prusa defaults Y
+  #define TMC2130_HSTR_Y 5
+  #define TMC2130_HEND_Y 1
+  #define TMC2130_TBL_Y 2
+#else
+  #define TMC2130_TOFF_Y 2 // Kuo adjusted for 0.9 degree motors
+  #define TMC2130_HSTR_Y 2
+  #define TMC2130_HEND_Y 0
+  #define TMC2130_TBL_Y 2
+#endif
+
+#ifndef Z_AXIS_MOTOR_09
+  #define TMC2130_TOFF_Z 3 // Prusa defaults Z
+  #define TMC2130_HSTR_Z 5
+  #define TMC2130_HEND_Z 1
+  #define TMC2130_TBL_Z 2
+#else
+  #define TMC2130_TOFF_Z 2 // Kuo adjusted for 0.9 degree motors
+  #define TMC2130_HSTR_Z 2
+  #define TMC2130_HEND_Z 0
+  #define TMC2130_TBL_Z 2
+#endif
+
+#ifndef E_AXIS_MOTOR_09 
+  #define TMC2130_TOFF_E 3 // Prusa defaults E
+  #define TMC2130_HSTR_E 5
+  #define TMC2130_HEND_E 1
+  #define TMC2130_TBL_E 2
+#else
+  #define TMC2130_TOFF_E 2 // Kuo adjusted for 0.9 degree motors
+  #define TMC2130_HSTR_E 2
+  #define TMC2130_HEND_E 0
+  #define TMC2130_TBL_E 2
+#endif
+//Kuo end chopper defines
 //#define TMC2130_STEALTH_E // Extruder stealthChop mode
 //#define TMC2130_CNSTOFF_E // Extruder constant-off-time mode (similar to MK2)
 
@@ -275,22 +520,46 @@
 #define TMC2130_TCOOLTHRS_E 500       // TCOOLTHRS - coolstep treshold
 
 #define TMC2130_SG_HOMING       1     // stallguard homing
-#define TMC2130_SG_THRS_X       3     // stallguard sensitivity for X axis
-#define TMC2130_SG_THRS_Y       3     // stallguard sensitivity for Y axis
-#define TMC2130_SG_THRS_Z       4     // stallguard sensitivity for Z axis
-#define TMC2130_SG_THRS_E       3     // stallguard sensitivity for E axis
-#define TMC2130_SG_THRS_HOME {3, 3, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
+
+#ifndef X_AXIS_MOTOR_09 //Kuo stallguard homing settings
+  #define TMC2130_SG_THRS_X       3    // std stallguard sensitivity for X axis
+  #define TMC2130_SG_THRS_X_HOME  3    // std homing stallguard threshold for X axis
+#else
+  #define TMC2130_SG_THRS_X       4    // Kuo change here if different needed for 0.9 degree motors
+  #define TMC2130_SG_THRS_X_HOME  4
+#endif
+
+#ifndef Y_AXIS_MOTOR_09 //Kuo
+  #define TMC2130_SG_THRS_Y       3    // std stallguard sensitivity for Y axis
+  #define TMC2130_SG_THRS_Y_HOME  3    // std homing stallguard threshold for Y axis
+#else
+  #define TMC2130_SG_THRS_Y       5    // Increased from 4 for OMC with 9mm belt Kuo change here if different needed for 0.9 degree motors
+  #define TMC2130_SG_THRS_Y_HOME  4
+#endif
+
+#ifndef Z_AXIS_MOTOR_09 //Kuo
+  #define TMC2130_SG_THRS_Z       4    // std stallguard sensitivity for Z axis
+#else
+  #define TMC2130_SG_THRS_Z       4    // Kuo change here if different needed for 0.9 degree motors
+#endif
+
+#ifndef E_AXIS_MOTOR_09 //Kuo
+  #define TMC2130_SG_THRS_E       3    // std stallguard sensitivity for E axis
+#else
+  #define TMC2130_SG_THRS_E       3    // Kuo change here if different needed for 0.9 degree motors
+#endif //Kuo ======
+#define TMC2130_SG_THRS_HOME {TMC2130_SG_THRS_X_HOME, TMC2130_SG_THRS_Y_HOME, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
 
 //new settings is possible for vsense = 1, running current value > 31 set vsense to zero and shift both currents by 1 bit right (Z axis only)
 #define TMC2130_CURRENTS_H {16, 20, 35, 30}  // default holding currents for all axes
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
 #define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
-#define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
+//#define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes //PV This is now unused
 
-#define TMC2130_STEALTH_Z
-#define TMC2130_DEDGE_STEPPING
+#define TMC2130_STEALTH_Z //PV These seems to have been removed by accident by Clixter?
+#define TMC2130_DEDGE_STEPPING //PV This seems to have been removed by accident by Kuo?
 
-//#define TMC2130_SERVICE_CODES_M910_M918
+#define TMC2130_SERVICE_CODES_M910_M918 //Kuo Uncomment this line to enable TMC2130 service codes
 
 //#define TMC2130_DEBUG
 //#define TMC2130_DEBUG_WR
@@ -302,7 +571,11 @@
  *------------------------------------*/
 
 // Mintemps
-#define HEATER_0_MINTEMP 10
+#ifdef SLICETHERMISTOR //Kuo
+  #define HEATER_0_MINTEMP 5
+#else
+  #define HEATER_0_MINTEMP 10 // CLX New Prusa Default dowm from 15
+#endif //Kuo ===
 #define HEATER_MINTEMP_DELAY 15000                // [ms] ! if changed, check maximal allowed value @ ShortTimer
 #if HEATER_MINTEMP_DELAY>USHRT_MAX
 #error "Check maximal allowed value @ ShortTimer (see HEATER_MINTEMP_DELAY definition)"
@@ -320,9 +593,11 @@
 // Maxtemps
 #if defined(E3D_PT100_EXTRUDER_WITH_AMP) || defined(E3D_PT100_EXTRUDER_NO_AMP)
 #define HEATER_0_MAXTEMP 410
+#elif defined(SLICETHERMISTOR) //Kuo
+  #define HEATER_0_MAXTEMP 410
 #else
-#define HEATER_0_MAXTEMP 305
-#endif
+  #define HEATER_0_MAXTEMP 305
+#endif //Kuo ===
 #define BED_MAXTEMP 125
 #define AMBIENT_MAXTEMP 80
 
@@ -358,6 +633,48 @@
 #define FANCHECK_AUTO_FAIL_THRS 20 //[RPS] - Used during selftest to identify a faulty fan
 
 /*------------------------------------
+ LOAD/UNLOAD FILAMENT SETTINGS
+ *------------------------------------*/
+// Load filament distances and rates
+#ifdef BONDTECH_PRUSA_UPGRADE_MK3
+  #define LOAD_FILAMENT_DIST_1 40  //Kuo BMG load
+  #define LOAD_FILAMENT_RATE_1 400
+  #define LOAD_FILAMENT_DIST_2 40 //10 mm farther
+  #define LOAD_FILAMENT_RATE_2 300
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3S)
+  #define LOAD_FILAMENT_DIST_1 40  //Kuo BMG load
+  #define LOAD_FILAMENT_RATE_1 400
+  #define LOAD_FILAMENT_DIST_2 40 //10 mm farther
+  #define LOAD_FILAMENT_RATE_2 300
+#else
+  #define LOAD_FILAMENT_DIST_1 40  //Kuo Prusa default load
+  #define LOAD_FILAMENT_RATE_1 400
+  #define LOAD_FILAMENT_DIST_2 30 
+  #define LOAD_FILAMENT_RATE_2 300
+#endif
+
+// Unload filament distances and rates
+#ifdef BONDTECH_PRUSA_UPGRADE_MK3
+  #define UNLOAD_FILAMENT_DIST_0 3  //Kuo extrude slightly first to form finer tip
+  #define UNLOAD_FILAMENT_RATE_0 60
+  #define UNLOAD_FILAMENT_DIST_1 -45  //Kuo BMG unload
+  #define UNLOAD_FILAMENT_RATE_1 5200
+  #define UNLOAD_FILAMENT_DIST_2 -15
+  #define UNLOAD_FILAMENT_RATE_2 1000
+  #define UNLOAD_FILAMENT_DIST_3 -40 //20 mm farther
+  #define UNLOAD_FILAMENT_RATE_3 1000
+#else
+  #define UNLOAD_FILAMENT_DIST_0 3  //Kuo extrude slightly first to form finer tip
+  #define UNLOAD_FILAMENT_RATE_0 60
+  #define UNLOAD_FILAMENT_DIST_1 -45  //Kuo Prusa default unload 53 is end of std PTFE on BNBSX
+  #define UNLOAD_FILAMENT_RATE_1 5200
+  #define UNLOAD_FILAMENT_DIST_2 -15
+  #define UNLOAD_FILAMENT_RATE_2 1000
+  #define UNLOAD_FILAMENT_DIST_3 -20
+  #define UNLOAD_FILAMENT_RATE_3 1000
+#endif
+
+/*------------------------------------
  CHANGE FILAMENT SETTINGS
  *------------------------------------*/
 
@@ -368,10 +685,20 @@
 #define FILAMENTCHANGE_YPOS 0
 #define FILAMENTCHANGE_ZADD 2
 #define FILAMENTCHANGE_FIRSTRETRACT -2
-#define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 70 //E distance in mm for fast filament loading sequence used used in filament change (M600)
-#define FILAMENTCHANGE_FINALFEED 25 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
+#ifdef BONDTECH_PRUSA_UPGRADE_MK3 
+ #define FILAMENTCHANGE_FIRSTFEED 80 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+ #define FILAMENTCHANGE_FINALFEED 25  //Kuo BMG FILAMENTCHANGE_FINALFEED
+ #define FILAMENTCHANGE_FINALRETRACT -15 //PV This used to be -95, but since original changed from -80 to 0, a adjusted this value accordingly
+#elif defined(BONDTECH_PRUSA_UPGRADE_MK3S)
+ #define FILAMENTCHANGE_FIRSTFEED 80 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+ #define FILAMENTCHANGE_FINALFEED 25  //Kuo BMG FILAMENTCHANGE_FINALFEED
+ #define FILAMENTCHANGE_FINALRETRACT -15 //PV This used to be -95, but since original changed from -80 to 0, a adjusted this value accordingly
+#else
+ #define FILAMENTCHANGE_FIRSTFEED 70 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+ #define FILAMENTCHANGE_FINALFEED 25 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701) 
+ #define FILAMENTCHANGE_FINALRETRACT 0
+#endif
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
@@ -528,7 +855,7 @@
 
 #define PLA_PREHEAT_HOTEND_TEMP 215
 #define PLA_PREHEAT_HPB_TEMP 60
-
+								
 #define PVB_PREHEAT_HOTEND_TEMP 215
 #define PVB_PREHEAT_HPB_TEMP 75
 
@@ -605,6 +932,8 @@
 #define TEMP_SENSOR_0 247
 #elif defined(E3D_PT100_EXTRUDER_NO_AMP)
 #define TEMP_SENSOR_0 148
+#elif defined(SLICETHERMISTOR) //Kuo Slice 450C
+#define TEMP_SENSOR_0 800 //Kuo ===
 #else
 #define TEMP_SENSOR_0 5
 #endif

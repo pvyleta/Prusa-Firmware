@@ -11,6 +11,10 @@ extern uint8_t tmc2130_mres[4];
 
 //flags for axis stall detection
 extern uint8_t tmc2130_sg_thr[4];
+extern uint8_t tmc2130_sg_thr_home[4]; //Kuo added separate settings for homing			
+
+inline constexpr uint8_t tmc2130_default_current_h[4] = TMC2130_CURRENTS_H; //PV moved from cpp
+inline constexpr uint8_t tmc2130_default_current_r[4] = TMC2130_CURRENTS_R;	//PV moved from cpp													   
 
 extern bool tmc2130_sg_stop_on_crash;
 extern uint8_t tmc2130_sg_crash; //crash mask
