@@ -75,12 +75,12 @@
 #define TMC2130_HEND_XYZE_0_9 0
 #define TMC2130_TBL_XYZE_0_9  2
 
-#define TMC2130_SG_THRS_X_0_9 4
-#define TMC2130_SG_THRS_Y_0_9 5 // Increased from 4 for OMC with 9mm belt
+#define TMC2130_SG_THRS_X_0_9 5 // Increased from 4 as OMS was getting false X crashes
+#define TMC2130_SG_THRS_Y_0_9 6 // Increased from 4 as OMS was getting false Y crashes
 #define TMC2130_SG_THRS_Z_0_9 4
-#define TMC2130_SG_THRS_E_0_9 3
+#define TMC2130_SG_THRS_E_0_9 4 // Increased from 3 as a preventive measure, as I expect the same false positives as X and Y
 
-#define TMC2130_SG_THRS_HOME_0_9 {4, 4, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
+#define TMC2130_SG_THRS_HOME_0_9 {TMC2130_SG_THRS_X_0_9, TMC2130_SG_THRS_Y_0_9, TMC2130_SG_THRS_Z_0_9, TMC2130_SG_THRS_E_0_9}
 
 #define HOMING_CNT_MIN_0_9 10  // 0.9 motors often home at much lower count
 
