@@ -327,15 +327,31 @@ void sg_thr_load_settings(uint8_t axis) {
 	tmc2130_wr_COOLCONF(axis);
 }
 
+// Convert velocity in mm/s to TCOOLTHRS register value
 uint16_t __tcoolthrs(uint8_t axis)
 {
-	switch (axis)
-	{
-	case X_AXIS: return TMC2130_TCOOLTHRS_X;
-	case Y_AXIS: return TMC2130_TCOOLTHRS_Y;
-	case Z_AXIS: return TMC2130_TCOOLTHRS_Z;
-	}
-	return 0;
+    // Define speeds in mm/s for each axis
+    static const uint16_t coolstep_speed_threshold_mms[NUM_AXIS] = {
+        TMC2130_TCOOLTHRS_X_SPEED,  // X axis
+        TMC2130_TCOOLTHRS_Y_SPEED,  // Y axis
+        TMC2130_TCOOLTHRS_Z_SPEED,  // Z axis
+        TMC2130_TCOOLTHRS_E_SPEED   // E axis
+    };
+    
+    // Get axis-specific parameters
+    uint16_t steps_per_mm = cs.axis_steps_per_mm[axis];
+    uint16_t microsteps = tmc2130_mres2usteps(tmc2130_mres[axis]);
+    uint16_t velocity_mms = coolstep_speed_threshold_mms[axis];
+    
+    // Formula from datasheet, adjusted for microstepping:
+    // TSTEP = (fCLK × microstepping) ÷ (velocity × steps_per_mm × 256)
+    uint32_t tstep = ((uint32_t)TMC2130_FCLK * microsteps) / 
+                     ((uint32_t)velocity_mms * steps_per_mm * 256);
+    
+    // Clamp to valid register range (20-bit value)
+    if (tstep > 0xFFFFF) tstep = 0xFFFFF;
+    
+    return tstep;
 }
 
 static void tmc2130_XYZ_reg_init(uint8_t axis)

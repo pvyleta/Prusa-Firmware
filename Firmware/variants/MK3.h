@@ -306,20 +306,16 @@
 //#define TMC2130_STEALTH_E // Extruder stealthChop mode
 //#define TMC2130_CNSTOFF_E // Extruder constant-off-time mode (similar to MK2)
 
-//#define TMC2130_PWM_DIV   683         // PWM frequency divider (1024, 683, 512, 410)
-#define TMC2130_PWM_DIV   512         // PWM frequency divider (1024, 683, 512, 410)
-#define TMC2130_PWM_CLK   (2 * TMC2130_FCLK / TMC2130_PWM_DIV) // PWM frequency (23.4kHz, 35.1kHz, 46.9kHz, 58.5kHz for 12MHz fclk)
-
 #define TMC2130_TPWMTHRS  0         // TPWMTHRS - Sets the switching speed threshold based on TSTEP from stealthChop to spreadCycle mode
 #define TMC2130_TPWMTHRS_E 403      // Switch extruder from StealthChop to SpreadCycle at around 900mm/min
 #define TMC2130_THIGH     0         // THIGH - unused
 
-//#define TMC2130_TCOOLTHRS_X 450       // TCOOLTHRS - coolstep treshold
-//#define TMC2130_TCOOLTHRS_Y 450       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_X 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Y 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Z 500       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_E 500       // TCOOLTHRS - coolstep treshold
+// Define coolStep threshold speeds in mm/s
+// coolStep becomes active when the stepper speed drops below this threshold
+#define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_E_SPEED 11  // E axis coolStep threshold in mm/s
 
 #define TMC2130_SG_HOMING       1     // stallguard homing
 #define TMC2130_SG_THRS_X       3     // stallguard sensitivity for X axis
@@ -527,7 +523,6 @@
 // This also works fine on a Fotek SSR-10DA Solid State Relay into a 250W heater.
 // If your configuration is significantly different than this and you don't understand the issues involved, you probably
 // shouldn't use bed PID until someone else verifies your hardware works.
-// If this is enabled, find your own PID constants below.
 #define PIDTEMPBED
 //
 //#define BED_LIMIT_SWITCHING
