@@ -71,9 +71,6 @@
 #define TMC2130_PWM_AMPL_Z_0_9  205 // PWMCONF
 #define TMC2130_PWM_AMPL_E_0_9  245 // PWMCONF
 
-// Values below tuned by Kuo, however, MK4 uses (3, 6, -2, 2)  on 0.9 steppers,
-// as those supposedly are Prusa valus according to Marlin.
-// Odd as this FW otherwise uses (3, 5, 1, 2). Seems the impact might be negligible.
 #define TMC2130_TOFF_XYZE_0_9 2
 #define TMC2130_HSTR_XYZE_0_9 2
 #define TMC2130_HEND_XYZE_0_9 0

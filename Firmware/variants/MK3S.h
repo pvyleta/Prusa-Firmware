@@ -61,8 +61,8 @@
 // TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y. 
 // Raised TMC2130_PWM_AMPL_[xyze] by 5 to prevent skipping as the 0.9 steppers are slightly weaker than stock
 
-#define TMC2130_PWM_GRAD_X_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_Y_0_9  4   // PWM_GRAD
+#define TMC2130_PWM_GRAD_X_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_Y_0_9  3   // PWM_GRAD
 #define TMC2130_PWM_GRAD_Z_0_9  4   // PWM_GRAD
 #define TMC2130_PWM_GRAD_E_0_9  4   // PWM_GRAD
 
@@ -317,12 +317,12 @@
 #define TMC2130_TPWMTHRS_E 403      // Switch extruder from StealthChop to SpreadCycle at around 900mm/min
 #define TMC2130_THIGH     0         // THIGH - unused
 
-//#define TMC2130_TCOOLTHRS_X 450       // TCOOLTHRS - coolstep treshold
-//#define TMC2130_TCOOLTHRS_Y 450       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_X 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Y 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Z 500       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_E 500       // TCOOLTHRS - coolstep treshold
+// Define coolStep threshold speeds in mm/s
+// coolStep becomes active when the stepper speed drops below this threshold
+#define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_E_SPEED 11  // E axis coolStep threshold in mm/s
 
 #define TMC2130_SG_HOMING       1     // stallguard homing
 #define TMC2130_SG_THRS_X       3     // stallguard sensitivity for X axis
@@ -332,9 +332,9 @@
 #define TMC2130_SG_THRS_HOME {3, 3, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
 
 //new settings is possible for vsense = 1, running current value > 31 set vsense to zero and shift both currents by 1 bit right (Z axis only)
-#define TMC2130_CURRENTS_H {16, 20, 35, 30}  // default holding currents for all axes
+#define TMC2130_CURRENTS_H {15, 19, 35, 28}  // default holding currents for all axes
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
-#define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
+#define TMC2130_CURRENTS_R {15, 19, 35, 28}  // default running currents for all axes
 #define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
 
 #define TMC2130_STEALTH_Z

@@ -88,9 +88,6 @@
 #define TMC2130_PWM_AMPL_Z_0_9  205 // PWMCONF
 #define TMC2130_PWM_AMPL_E_0_9  245 // PWMCONF
 
-// Values below tuned by Kuo, however, MK4 uses (3, 6, -2, 2)  on 0.9 steppers,
-// as those supposedly are Prusa valus according to Marlin.
-// Odd as this FW otherwise uses (3, 5, 1, 2). Seems the impact might be negligible.
 #define TMC2130_TOFF_XYZE_0_9 2
 #define TMC2130_HSTR_XYZE_0_9 2
 #define TMC2130_HEND_XYZE_0_9 0
@@ -337,12 +334,12 @@
 #define TMC2130_TPWMTHRS_E 403      // Switch extruder from StealthChop to SpreadCycle at around 900mm/min
 #define TMC2130_THIGH     0         // THIGH - unused
 
-//#define TMC2130_TCOOLTHRS_X 450       // TCOOLTHRS - coolstep treshold
-//#define TMC2130_TCOOLTHRS_Y 450       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_X 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Y 430       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_Z 500       // TCOOLTHRS - coolstep treshold
-#define TMC2130_TCOOLTHRS_E 500       // TCOOLTHRS - coolstep treshold
+// Define coolStep threshold speeds in mm/s
+// coolStep becomes active when the stepper speed drops below this threshold
+#define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_E_SPEED 11  // E axis coolStep threshold in mm/s
 
 #define TMC2130_SG_HOMING       1     // stallguard homing
 #define TMC2130_SG_THRS_X       3     // stallguard sensitivity for X axis
