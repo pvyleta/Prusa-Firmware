@@ -57,8 +57,6 @@
 // TMC2130_PWM_GRAD & TMC2130_PWM_AMPL tuned for 09 motor.
 // Better axis motion control with lower TMC2130_PWM_GRAD 2,3,4 but can squeak during fast declerations.
 // TMC2130_PWM_GRAD too high causes y-layer shifts
-// TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y. 
-// Raised TMC2130_PWM_AMPL_Y to 250 to prevent y-layer shifts on weaker motors
 
 #define TMC2130_PWM_GRAD_X_0_9  3   // PWM_GRAD
 #define TMC2130_PWM_GRAD_Y_0_9  3   // PWM_GRAD
@@ -70,15 +68,19 @@
 #define TMC2130_PWM_AMPL_Z_0_9  200 // PWMCONF  
 #define TMC2130_PWM_AMPL_E_0_9  245 // PWMCONF
 
+// Values below tuned by Kuo, however, MK4 uses (3, 6, -2, 2)  on 0.9 steppers, 
+// as those supposedly are Prusa valus according to Marlin.
+// Odd as this FW otherwise uses (3, 5, 1, 2). Seems the impact might be negligible.
 #define TMC2130_TOFF_XYZE_0_9 2
 #define TMC2130_HSTR_XYZE_0_9 2
 #define TMC2130_HEND_XYZE_0_9 0
 #define TMC2130_TBL_XYZE_0_9  2
 
-#define TMC2130_SG_THRS_X_0_9 3 // Increased from 4 as OMS was getting false X crashes
-#define TMC2130_SG_THRS_Y_0_9 3 // Increased from 4 as OMS was getting false Y crashes
+// Stallguard Threshold a.k.a. Crash Detections sensitivity. In case you are getting false X/Y crashes, increase the value slightly.
+#define TMC2130_SG_THRS_X_0_9 1
+#define TMC2130_SG_THRS_Y_0_9 1
 #define TMC2130_SG_THRS_Z_0_9 4
-#define TMC2130_SG_THRS_E_0_9 3 // Increased from 3 as a preventive measure, as I expect the same false positives as X and Y
+#define TMC2130_SG_THRS_E_0_9 1
 
 #define TMC2130_SG_THRS_HOME_0_9 {TMC2130_SG_THRS_X_0_9, TMC2130_SG_THRS_Y_0_9, TMC2130_SG_THRS_Z_0_9, TMC2130_SG_THRS_E_0_9}
 
@@ -327,9 +329,9 @@
 #define TMC2130_SG_THRS_HOME {3, 3, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
 
 //new settings is possible for vsense = 1, running current value > 31 set vsense to zero and shift both currents by 1 bit right (Z axis only)
-#define TMC2130_CURRENTS_H {16, 20, 35, 30}  // default holding currents for all axes
+#define TMC2130_CURRENTS_H {15, 19, 35, 28}  // default holding currents for all axes
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
-#define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
+#define TMC2130_CURRENTS_R {15, 19, 35, 28}  // default running currents for all axes
 #define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
 
 #define TMC2130_STEALTH_Z

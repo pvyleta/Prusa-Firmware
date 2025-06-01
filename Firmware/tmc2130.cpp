@@ -361,7 +361,8 @@ static void tmc2130_XYZ_reg_init(uint8_t axis)
 	const bool isStealth = (tmc2130_mode == TMC2130_MODE_SILENT);
 	if (axis == Z_AXIS) {
 #ifdef TMC2130_STEALTH_Z
-		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24));
+		// https://www.analog.com/media/en/technical-documentation/data-sheets/tmc2130_datasheet_rev1.15.pdf for COOLCONF settings
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24) | ((uint32_t)1 << 5 /*seup*/) | ((uint32_t)1/*semin*/));
 		tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, isStealth ? 0 : __tcoolthrs(axis));
 		tmc2130_wr(axis, TMC2130_REG_GCONF, isStealth ? TMC2130_GCONF_SILENT : TMC2130_GCONF_DYNAMIC_SGSENS);
 		tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
@@ -370,7 +371,7 @@ static void tmc2130_XYZ_reg_init(uint8_t axis)
 		tmc2130_wr(axis, TMC2130_REG_GCONF, TMC2130_GCONF_SGSENS);
 #endif // TMC2130_STEALTH_Z
 	} else { // X Y
-		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24));
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24) | ((uint32_t)1 << 5 /*seup*/) | ((uint32_t)1/*semin*/));
 		tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, isStealth ? 0 : __tcoolthrs(axis));
 		tmc2130_wr(axis, TMC2130_REG_GCONF, isStealth ? TMC2130_GCONF_SILENT : TMC2130_GCONF_SGSENS);
 		tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
@@ -411,7 +412,7 @@ void tmc2130_init(TMCInitParams params)
     if( ! params.enableECool ){
         tmc2130_wr(E_AXIS, TMC2130_REG_GCONF, TMC2130_GCONF_SGSENS);
     } else {
-        tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[E_AXIS]) << 16));
+        tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[E_AXIS]) << 16) | ((uint32_t)1 << 5 /*seup*/) | ((uint32_t)1/*semin*/));
         tmc2130_wr(E_AXIS, TMC2130_REG_TCOOLTHRS, 0);
         tmc2130_wr(E_AXIS, TMC2130_REG_GCONF, TMC2130_GCONF_SILENT);
         tmc2130_wr(E_AXIS, TMC2130_REG_PWMCONF, pwmconf_Ecool.dw);
@@ -688,7 +689,7 @@ void tmc2130_set_pwm_grad(uint8_t axis, uint8_t pwm_grad)
 
 static void tmc2130_wr_COOLCONF(uint8_t axis)
 {
-	uint32_t coolconf = ((uint32_t)tmc2130_sg_thr[axis]) << 16;
+	uint32_t coolconf = ((uint32_t)tmc2130_sg_thr[axis]) << 16 | ((uint32_t)1 << 5 /*seup*/) | ((uint32_t)1/*semin*/);
 	coolconf |= (axis == E_AXIS) ? 0 : ((uint32_t)1 << 24);
 	tmc2130_wr(axis, TMC2130_REG_COOLCONF, coolconf);
 }
