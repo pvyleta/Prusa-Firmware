@@ -1310,6 +1310,13 @@ void setup()
 	if (tmc2130_wave_fac[Y_AXIS] == 0xff) tmc2130_wave_fac[Y_AXIS] = 0;
 	if (tmc2130_wave_fac[Z_AXIS] == 0xff) tmc2130_wave_fac[Z_AXIS] = 0;
 	if (tmc2130_wave_fac[E_AXIS] == 0xff) tmc2130_wave_fac[E_AXIS] = 0;
+
+	// Initialize wave algorithm selection
+	tmc2130_wave_algorithm = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM);
+	if (tmc2130_wave_algorithm == 0xff) {
+		// Default to original algorithm (0xFF = uninitialized EEPROM, compatible with stock firmware)
+		tmc2130_wave_algorithm = TMC2130_WAVE_ALGORITHM_ORIGINAL;
+	}
 #endif //TMC2130_LINEARITY_CORRECTION
 
 #ifdef TMC2130_VARIABLE_RESOLUTION

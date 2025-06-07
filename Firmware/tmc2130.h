@@ -28,9 +28,26 @@ extern const char eMotorCurrentScalingEnabled[];
 #define TMC2130_MODE_NORMAL 0
 #define TMC2130_MODE_SILENT 1
 
-#define TMC2130_WAVE_FAC1000_MIN  30
+// Unified linearity correction range for menu (0-200 maps to power factors 1.0-1.2)
+#define TMC2130_WAVE_FAC1000_MIN  0
 #define TMC2130_WAVE_FAC1000_MAX 200
 #define TMC2130_WAVE_FAC1000_STP   1
+
+// Wave algorithm selection (0xFF = uninitialized/default)
+#define TMC2130_WAVE_ALGORITHM_ORIGINAL       0
+#define TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE 1
+#define TMC2130_WAVE_ALGORITHM_DEFAULT        0xFF
+
+// Constants for wave compensation algorithms
+// These are now used dynamically based on runtime algorithm selection
+#define TMC2130_WAVE_SIN0_ORIGINAL 0      // original sine wave minimum value
+#define TMC2130_WAVE_SIN0_CONSTANT_TORQUE 1  // constant torque sine wave minimum value
+#define TMC2130_WAVE_MAX_ORIGINAL ((uint8_t)247)  // original sine wave maximum value
+#define TMC2130_WAVE_MAX_CONSTANT_TORQUE ((uint8_t)248)  // constant torque sine wave maximum value
+
+// For backward compatibility, default to original algorithm values
+#define TMC2130_WAVE_SIN0 TMC2130_WAVE_SIN0_ORIGINAL
+#define TMC2130_WAVE_MAX TMC2130_WAVE_MAX_ORIGINAL
 
 #define TMC2130_MINIMUM_PULSE 0   // minimum pulse width in uS
 #define TMC2130_SET_DIR_DELAY 20  // minimum delay after setting direction in uS
@@ -50,6 +67,7 @@ extern uint8_t tmc2130_home_bsteps[2];
 extern uint8_t tmc2130_home_fsteps[2];
 
 extern uint8_t tmc2130_wave_fac[4];
+extern uint8_t tmc2130_wave_algorithm;
 
 #pragma pack(push)
 #pragma pack(1)

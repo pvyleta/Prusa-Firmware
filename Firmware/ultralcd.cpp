@@ -4170,6 +4170,17 @@ void lcd_wizard(WizState state)
 }
 
 #ifdef TMC2130
+void lcd_wave_algorithm_toggle(void)
+{
+	// Toggle between original and constant torque algorithms
+	tmc2130_wave_algorithm = (tmc2130_wave_algorithm == TMC2130_WAVE_ALGORITHM_ORIGINAL) ?
+	                         TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE : TMC2130_WAVE_ALGORITHM_ORIGINAL;
+	eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM, tmc2130_wave_algorithm);
+
+	// Re-init the TMC2130 driver to apply changes
+	tmc2130_init(TMCInitParams(false, FarmOrUserECool()));
+}
+
 void lcd_settings_linearity_correction_menu(void)
 {
 	MENU_BEGIN();
@@ -4177,12 +4188,18 @@ void lcd_settings_linearity_correction_menu(void)
         lcd_settings_linearity_correction_menu_save();
     );
 	MENU_ITEM_BACK_P(_T(MSG_SETTINGS));
+
+	// Algorithm selection (always available)
+	const char* algorithm_text = (tmc2130_wave_algorithm == TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE) ?
+	                            _T(MSG_WAVE_CONSTANT_TORQUE) : _T(MSG_WAVE_ORIGINAL);
+	MENU_ITEM_TOGGLE_P(_T(MSG_WAVE_ALGORITHM), algorithm_text, lcd_wave_algorithm_toggle);
+
 #ifdef TMC2130_LINEARITY_CORRECTION_XYZ
-	MENU_ITEM_EDIT_int3_P(_T(MSG_X_CORRECTION), &tmc2130_wave_fac[X_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
-	MENU_ITEM_EDIT_int3_P(_T(MSG_Y_CORRECTION), &tmc2130_wave_fac[Y_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
-	MENU_ITEM_EDIT_int3_P(_T(MSG_Z_CORRECTION), &tmc2130_wave_fac[Z_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_X_CORRECTION), &tmc2130_wave_fac[X_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_Y_CORRECTION), &tmc2130_wave_fac[Y_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_Z_CORRECTION), &tmc2130_wave_fac[Z_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
 #endif //TMC2130_LINEARITY_CORRECTION_XYZ
-	MENU_ITEM_EDIT_int3_P(_T(MSG_EXTRUDER_CORRECTION), &tmc2130_wave_fac[E_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_EXTRUDER_CORRECTION), &tmc2130_wave_fac[E_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
 	MENU_END();
 }
 #endif // TMC2130
@@ -4683,13 +4700,16 @@ static void lcd_settings_menu()
 #ifdef TMC2130
 static void lcd_settings_linearity_correction_menu_save() {
     for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
-
-        if (tmc2130_wave_fac[axis] < TMC2130_WAVE_FAC1000_MIN) {
-            tmc2130_wave_fac[axis] = 0;
+        // Clamp values to valid range (no need to check minimum since it's 0)
+        if (tmc2130_wave_fac[axis] > TMC2130_WAVE_FAC1000_MAX) {
+            tmc2130_wave_fac[axis] = TMC2130_WAVE_FAC1000_MAX;
         }
 
         eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_WAVE_X_FAC - axis, tmc2130_wave_fac[axis]);
     }
+
+    // Save algorithm selection
+    eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM, tmc2130_wave_algorithm);
 
     // Re-init the TMC2130 driver to apply changes, if any
     tmc2130_init(TMCInitParams(false, FarmOrUserECool()));

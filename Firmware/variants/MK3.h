@@ -38,7 +38,7 @@
  *------------------------------------*/
 
 // Motors used should be 1 amp or lower current rating to avoid overheating TMC2130 drivers in Stealthchop.
-// Recommended 0.9 degree motors for X, Y, or direct drive E are Moons MS17HA2P4100 or OMC 17HM15-0904S 
+// Recommended 0.9 degree motors for X, Y, or direct drive E are Moons MS17HA2P4100 or OMC 17HM15-0904S
 
 #define STEPPER_DEFAULT 0xFF // Prusa 1.8° steppers
 #define STEPPER_0_9_MOONS 0 // Moons MS17HA2P4100 0.9° steppers
@@ -48,6 +48,11 @@
 #define TMC2130_USTEPS_XYZ_0_9   8  // reduce X microsteps to 8 because EINSY cannot keep up with 16 on 0.9 degree motor
 #define TMC2130_USTEPS_E_0_9 16 // 0.9 motor, non-geared
 // Note: we are not changing axis_steps_per_mm since axis_ustep_resolution affects tmc2130_mres, but we compensate by using 0.9 steppers
+
+// TMC2130 Constant Torque Wave Compensation (Bunny Science's algorithm)
+// Uncomment to enable improved wave compensation with constant torque maintenance
+// Provides better motor smoothness and reduced VFAs, especially with 0.9° steppers
+//#define TMC2130_CONSTANT_TORQUE_WAVE
 
 #define X_AXIS_current_r_home_0_9 10  // adjust x homing current slightly higher for 0.9 x
 #define Y_AXIS_current_r_home_0_9 12  // adjust y homing current slightly higher for 0.9 y

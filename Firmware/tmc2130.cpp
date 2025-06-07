@@ -161,6 +161,7 @@ uint8_t tmc2130_home_bsteps[2] = {48, 48};
 uint8_t tmc2130_home_fsteps[2] = {48, 48};
 
 uint8_t tmc2130_wave_fac[4] = {0, 0, 0, 0};
+uint8_t tmc2130_wave_algorithm = TMC2130_WAVE_ALGORITHM_DEFAULT;
 
 tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 	{ // X axis
@@ -429,11 +430,11 @@ void tmc2130_init(TMCInitParams params)
 
 #ifdef TMC2130_LINEARITY_CORRECTION
 #ifdef TMC2130_LINEARITY_CORRECTION_XYZ
-	tmc2130_set_wave(X_AXIS, 247, tmc2130_wave_fac[X_AXIS]);
-	tmc2130_set_wave(Y_AXIS, 247, tmc2130_wave_fac[Y_AXIS]);
-	tmc2130_set_wave(Z_AXIS, 247, tmc2130_wave_fac[Z_AXIS]);
+	tmc2130_set_wave(X_AXIS, TMC2130_WAVE_MAX, tmc2130_wave_fac[X_AXIS]);
+	tmc2130_set_wave(Y_AXIS, TMC2130_WAVE_MAX, tmc2130_wave_fac[Y_AXIS]);
+	tmc2130_set_wave(Z_AXIS, TMC2130_WAVE_MAX, tmc2130_wave_fac[Z_AXIS]);
 #endif //TMC2130_LINEARITY_CORRECTION_XYZ
-	tmc2130_set_wave(E_AXIS, 247, tmc2130_wave_fac[E_AXIS]);
+	tmc2130_set_wave(E_AXIS, TMC2130_WAVE_MAX, tmc2130_wave_fac[E_AXIS]);
 #endif //TMC2130_LINEARITY_CORRECTION
 
 #ifdef PSU_Delta
@@ -978,14 +979,229 @@ void tmc2130_get_wave(uint8_t axis, uint8_t* data)
 
 void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 {
-// TMC2130 wave compression algorithm
-// optimized for minimal memory requirements
-//	printf_P(PSTR("tmc2130_set_wave %d %d\n"), axis, fac1000);
-	if (fac1000 < TMC2130_WAVE_FAC1000_MIN) fac1000 = 0;
-	if (fac1000 > TMC2130_WAVE_FAC1000_MAX) fac1000 = TMC2130_WAVE_FAC1000_MAX;
-	float fac = 0;
-	if (fac1000) fac = ((float)((uint16_t)fac1000 + 1000) / 1000); //correction factor
-//	printf_P(PSTR(" factor: %s\n"), ftostr43(fac));
+	// Convert unified user input (0-200) to appropriate algorithm parameters
+	// User range 0-200 maps to power factors 1.0-1.2 for both algorithms
+
+	// Determine which algorithm to use (runtime selection)
+	bool use_constant_torque = (tmc2130_wave_algorithm == TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE);
+
+	if (use_constant_torque) {
+		// Bunny Science's Constant Torque TMC2130 wave compression algorithm
+		// Based on bhawkeye's improvements with simplified parameter range
+		// Maintains constant total torque throughout sine wave cycle
+
+		if (fac1000 > TMC2130_WAVE_FAC1000_MAX) fac1000 = TMC2130_WAVE_FAC1000_MAX;
+
+		float fac = 0;
+		if (fac1000) {
+			// Map user input 0-200 to power factor range 1.0-1.2
+			fac = 1.0 + 0.2 * ((float)fac1000 / (float)TMC2130_WAVE_FAC1000_MAX);
+		}
+
+	// Variables for constant torque algorithm
+	float tcorr;                   // torque correction factor
+	uint32_t reg = 0;              // tmc2130 register
+	uint16_t ampamp = amp * amp;   // amp squared for calculations
+	int i = 0;                     // loop counter
+	uint8_t w[4] = {1,1,1,1};      // W bits (MSLUTSEL)
+	int8_t wtbl[4][2] = {          // W table for bit encoding
+		{-1, 0},
+		{ 0, 1},
+		{ 1, 2},
+		{ 2, 3}
+	};
+	uint8_t x[3] = {255,255,255};  // X segment bounds (MSLUTSEL)
+	uint8_t val[257];              // calculated wave values (extended for safety)
+	uint8_t va;                    // current value
+	int8_t d0 = 0;                 // delta0 from MSLUTSEL W bits
+	int8_t d1 = 1;                 // delta1 MSLUTSEL W bits
+	int8_t maxd;                   // maximum allowed delta
+	uint8_t s = 0;                 // current segment
+	int8_t b;                      // encoded MSLUT bit value
+	int8_t dA;                     // delta value
+	uint8_t missed_i = 0;          // last missed index for correction
+	uint8_t chgcnt = 0;            // change counter for correction loop
+
+	// Calculate midpoint for constant torque correction
+	float midpointf = (float)(amp - TMC2130_WAVE_SIN0);
+	midpointf = midpointf * midpointf / 2.0;
+	midpointf = sqrt(midpointf);
+	uint8_t midpoint = (uint8_t)round(midpointf);
+
+	// Calculate torque correction factor for constant torque maintenance
+	if (fac != 0) {
+		float pwrmidf = (PI * 127) / 512.0;
+		pwrmidf = sin(pwrmidf);
+		pwrmidf = pow(pwrmidf, fac);
+		pwrmidf = pwrmidf * (amp - TMC2130_WAVE_SIN0) + 0.5;
+		uint8_t pwrmid = (uint8_t)round(pwrmidf);
+		tcorr = (float)midpoint / (float)pwrmid;
+	} else {
+		tcorr = 1.0;
+	}
+
+	// Generate wave values with constant torque correction
+	va = val[0] = TMC2130_WAVE_SIN0_CONSTANT_TORQUE;
+	for (i = 1; i < 126; i++) {
+		// Set maximum allowed delta based on position
+		if (i < 33)
+			maxd = 3;
+		else if (i < 125)
+			maxd = 2;
+		else
+			maxd = 1;
+
+		// Calculate corrected wave value
+		if (fac == 0) {
+			// Default TMC wave
+			va = (uint8_t)((amp + 1) * sin((2 * PI * i + PI) / 1024) + 0.5) - 1;
+		} else {
+			// Constant torque corrected wave
+			va = ((amp - TMC2130_WAVE_SIN0_CONSTANT_TORQUE) * pow(sin(PI * i / 512), fac) * tcorr) + TMC2130_WAVE_SIN0_CONSTANT_TORQUE + 0.5;
+		}
+
+		// Enforce maximum slope constraint
+		if (va <= (val[i-1] + maxd))
+			val[i] = va;
+		else
+			val[i] = val[i-1] + maxd; // curve can't exceed TMC2130's max slope
+	}
+
+	// Set midpoint and interpolate
+	val[127] = midpoint + TMC2130_WAVE_SIN0_CONSTANT_TORQUE;
+	val[126] = (val[125] + val[127] + 1) / 2;
+
+	// Generate second half using circle equation for constant torque
+	for (i = 128; i < 255; i++) {
+		va = (uint8_t)(sqrt((float)(ampamp - (uint16_t)val[255 - i] * val[255 - i])) + 0.5);
+		val[i] = va > amp ? amp : va;
+	}
+	val[255] = amp;
+
+	tmc2130_wr_MSLUTSTART(axis, TMC2130_WAVE_SIN0_CONSTANT_TORQUE, amp);
+redocompress:
+	missed_i = 0;
+	s = 0;
+
+	// Get initial segment slope based on first delta
+	dA = val[1] - val[0];
+	switch (dA) {
+		default:
+		case 1: d0 = 0; d1 = 1; w[s] = 1; break;
+		case 2: d0 = 1; d1 = 2; w[s] = 2; break;
+		case 3: d0 = 2; d1 = 3; w[s] = 3; break;
+	}
+
+	va = TMC2130_WAVE_SIN0;
+
+	// TMC2130 wave compression algorithm with constant torque improvements
+	for (i = 0; i < 255; i++) {
+		if ((i & 0x1f) == 0)
+			reg = 0;
+
+		dA = val[i+1] - va; // calculate delta to next
+		dA = dA < 0 ? 0 : dA;
+		dA = dA > 3 ? 3 : dA;
+		b = 0;
+
+		// Adaptive segment switching logic
+		if ((dA < d0) && (d0 > -1)) { // delta < delta0 => switch wbit down
+			if (i > 120 && fac1000 > 100 && ((val[i+2] - va) > 3*d0)) {
+				goto nomoresegs; // leave mid section at current setting
+			}
+
+			if (s == 3) {
+				w[s] = 1;
+				d0 = 0; d1 = 1;
+				goto nomoresegs;
+			}
+
+			int sw = i < 120 ? (w[s] - 1) : 1; // switch down or to 0:1 on upper half
+			switch (sw) {
+				case 1: d0 = 0; d1 = 1; w[s+1] = 1; break;
+				case 2: d0 = 1; d1 = 2; w[s+1] = 2; break;
+				default: b = -1; break;
+			}
+			if (b >= 0) {
+				x[s] = i;
+				s++;
+			}
+		}
+		else if ((dA > d1) && (d1 < 3) && (i < 128) && (i < 16 || (val[i+2] - va) > (3*d1))) {
+			// delta > delta1 => switch wbit up
+			if (s == 3) {
+				w[s] = 1;
+				d0 = 0; d1 = 1;
+				goto nomoresegs;
+			}
+
+			int sw = w[s] + 1; // always switch up 1 from current
+			switch (sw) {
+				case 1: d0 = 0; d1 = 1; w[s+1] = 1; break;
+				case 2: d0 = 1; d1 = 2; w[s+1] = 2; break;
+				case 3: d0 = 2; d1 = 3; w[s+1] = 3; break;
+				default: b = -1; break;
+			}
+			if (b >= 0) {
+				x[s] = i;
+				s++;
+			}
+		}
+
+nomoresegs:
+		if (dA <= d0)
+			b = 0; // delta == delta0 => bit=0
+		else
+			b = 1; // delta == delta1 => bit=1
+
+		if (b == 1)
+			reg |= 0x80000000;
+
+		va = va + wtbl[w[s]][b]; // update value for next compare
+
+		if (va != val[i+1]) {
+			missed_i = i; // remember last miss
+			val[i+1] = va; // change next value to the one that was achievable
+		}
+
+		if ((i & 31) == 31)
+			tmc2130_wr_MSLUT(axis, (uint8_t)(i >> 5), reg);
+		else
+			reg >>= 1;
+	}
+
+	// Error correction loop - attempt to fix compression errors
+	if ((chgcnt == 0) && (missed_i != 0)) { // only try once
+		// Make minor corrections to 1st half of wave values to compensate for compression errors
+		missed_i = 255 - missed_i; // last miss paired value is the 1st we need to check
+		if (missed_i < 16)
+			missed_i = 16; // don't adjust 1st 16 entries
+
+		for (i = missed_i; i < 125; i++) {
+			va = (uint8_t)(sqrt((float)(((uint32_t)val[i] * val[i]) + ((uint32_t)val[255-i] * val[255-i]))) + 0.5);
+			if (va < amp) {
+				val[i]++;
+				chgcnt++;
+			} else if (va > amp) {
+				val[i]--;
+				chgcnt++;
+			}
+		}
+		if (chgcnt != 0)
+			goto redocompress;
+	}
+
+		tmc2130_wr_MSLUTSEL(axis, x[0], x[1], x[2], w[0], w[1], w[2], w[3]);
+	} else {
+		// Original TMC2130 wave compression algorithm
+		// optimized for minimal memory requirements
+		if (fac1000 > TMC2130_WAVE_FAC1000_MAX) fac1000 = TMC2130_WAVE_FAC1000_MAX;
+		float fac = 0;
+		if (fac1000) {
+			// Map user input 0-200 to power factor range 1.0-1.2 (same as constant torque)
+			fac = 1.0 + 0.2 * ((float)fac1000 / (float)TMC2130_WAVE_FAC1000_MAX);
+		}
+
 	uint8_t vA = 0;                //value of currentA
 	uint8_t va = 0;                //previous vA
 	int8_t d0 = 0;                //delta0
@@ -995,9 +1211,10 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 	uint8_t s = 0;                 //current segment
 	int8_t b;                      //encoded bit value
 	int8_t dA;                     //delta value
-	uint8_t i = 0;                         //microstep index
+	uint8_t i = 0;                 //microstep index
 	uint32_t reg = 0;              //tmc2130 register
-	tmc2130_wr_MSLUTSTART(axis, 0, amp);
+	tmc2130_wr_MSLUTSTART(axis, TMC2130_WAVE_SIN0_ORIGINAL, amp);
+
 	do
 	{
 		if ((i & 0x1f) == 0)
@@ -1016,7 +1233,6 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 		{
 			if (dA < d0) // delta < delta0 => switch wbit down
 			{
-				//printf("dn\n");
 				b = 0;
 				switch (dA)
 				{
@@ -1029,7 +1245,6 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 			}
 			else if (dA > d1) // delta > delta0 => switch wbit up
 			{
-				//printf("up\n");
 				b = 1;
 				switch (dA)
 				{
@@ -1043,15 +1258,14 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 		}
 		if (b < 0) break; // delta out of range (<-1 or >3)
 		if (s > 3) break; // segment out of range (> 3)
-		//printf("%d\n", vA);
 		if (b == 1) reg |= 0x80000000;
 		if ((i & 31) == 31)
 			tmc2130_wr_MSLUT(axis, (uint8_t)(i >> 5), reg);
 		else
 			reg >>= 1;
-//		printf("%3d\t%3d\t%2d\t%2d\t%2d\t%2d    %08x\n", i, vA, dA, b, w[s], s, reg);
-	} while (i++ != 255);
-	tmc2130_wr_MSLUTSEL(axis, x[0], x[1], x[2], w[0], w[1], w[2], w[3]);
+		} while (i++ != 255);
+		tmc2130_wr_MSLUTSEL(axis, x[0], x[1], x[2], w[0], w[1], w[2], w[3]);
+	}
 }
 
 void bubblesort_uint8(uint8_t* data, uint8_t size, uint8_t* data2)

@@ -322,6 +322,9 @@ extern const char MSG_TEMPERATURE [] PROGMEM_I1 = ISTR("Temperature"); ////MSG_T
 extern const char MSG_MOVE_AXIS [] PROGMEM_I1 = ISTR("Move axis"); ////MSG_MOVE_AXIS c=18
 extern const char MSG_DISABLE_STEPPERS [] PROGMEM_I1 = ISTR("Disable steppers"); ////MSG_DISABLE_STEPPERS c=18
 extern const char MSG_LIN_CORRECTION [] PROGMEM_I1 = ISTR("Lin. correction"); ////MSG_LIN_CORRECTION c=18
+extern const char MSG_WAVE_ALGORITHM [] PROGMEM_I1 = ISTR("Wave algorithm"); ////MSG_WAVE_ALGORITHM c=18
+extern const char MSG_WAVE_ORIGINAL [] PROGMEM_I1 = ISTR("Original"); ////MSG_WAVE_ORIGINAL c=18
+extern const char MSG_WAVE_CONSTANT_TORQUE [] PROGMEM_I1 = ISTR("Constant torque"); ////MSG_WAVE_CONSTANT_TORQUE c=18
 extern const char MSG_WIZARD [] PROGMEM_I1 = ISTR("Wizard"); ////MSG_WIZARD c=17
 extern const char MSG_BELTTEST [] PROGMEM_I1 = ISTR("Belt test"); ////MSG_BELTTEST c=18
 extern const char MSG_SELFTEST [] PROGMEM_I1 = ISTR("Selftest"); ////MSG_SELFTEST c=18
