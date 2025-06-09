@@ -347,7 +347,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
             SERIAL_PROTOCOLPGM(" min: "); SERIAL_PROTOCOL(min);
             SERIAL_PROTOCOLPGM(" max: "); SERIAL_PROTOCOLLN(max);
             if(pid_cycle > 2) {
-              Ku = (4.0*d)/(3.14159*(max-min)/2.0);
+              Ku = (4.0*d)/(M_PI*(max-min)/2.0);
               Tu = ((float)(t_low + t_high)/1000.0);
               SERIAL_PROTOCOLPGM(" Ku: "); SERIAL_PROTOCOL(Ku);
               SERIAL_PROTOCOLPGM(" Tu: "); SERIAL_PROTOCOLLN(Tu);

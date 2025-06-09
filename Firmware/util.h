@@ -168,3 +168,4 @@ void calibration_status_clear(CalibrationStatus components);
 
 // PINDA has an independent calibration flag
 inline bool calibration_status_pinda() { return eeprom_read_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA); }
+

@@ -9,6 +9,7 @@
         "regex": "cpp",
         "sstream": "cpp",
         "atomic": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "complex": "cpp"
     }
 }
