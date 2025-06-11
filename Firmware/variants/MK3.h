@@ -52,36 +52,6 @@
 #define X_AXIS_current_r_home_0_9 10  // adjust x homing current slightly higher for 0.9 x
 #define Y_AXIS_current_r_home_0_9 12  // adjust y homing current slightly higher for 0.9 y
 
-// TMC2130_PWM_GRAD & TMC2130_PWM_AMPL tuned for 09 motor.
-// Better axis motion control with lower TMC2130_PWM_GRAD 2,3,4 but can squeak during fast declerations.
-// TMC2130_PWM_GRAD too high causes y-layer shifts
-// TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y. 
-// Raised TMC2130_PWM_AMPL_[xyze] by 5 to prevent skipping as the 0.9 steppers are slightly weaker than stock
-
-#define TMC2130_PWM_GRAD_X_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_Y_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_Z_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_E_0_9  4   // PWM_GRAD
-
-#define TMC2130_PWM_AMPL_X_0_9  235 // PWMCONF   
-#define TMC2130_PWM_AMPL_Y_0_9  240 // PWMCONF
-#define TMC2130_PWM_AMPL_Z_0_9  205 // PWMCONF  
-#define TMC2130_PWM_AMPL_E_0_9  245 // PWMCONF
-
-#define TMC2130_TOFF_XYZE_0_9 2
-#define TMC2130_HSTR_XYZE_0_9 2
-#define TMC2130_HEND_XYZE_0_9 0
-#define TMC2130_TBL_XYZE_0_9  2
-
-#define TMC2130_SG_THRS_X_0_9 4
-#define TMC2130_SG_THRS_Y_0_9 5 // Increased from 4 for OMC with 9mm belt
-#define TMC2130_SG_THRS_Z_0_9 4
-#define TMC2130_SG_THRS_E_0_9 3
-
-#define TMC2130_SG_THRS_HOME_0_9 {4, 4, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
-
-#define HOMING_CNT_MIN_0_9 10  // 0.9 motors often home at much lower count
-
 /*------------------------------------
  0.9 Degree steppers
  *------------------------------------*/
