@@ -253,6 +253,23 @@ static ShortTimer tmc2130_overtemp_timer;
 #define TMC2130_REG_ENCM_CTRL  0x72 // 2 bits
 #define TMC2130_REG_LOST_STEPS 0x73 // 20 bits
 
+// COOLCONF register bit field definitions (TMC2130 datasheet rev1.15)
+#define TMC2130_COOLCONF_SEMIN_SHIFT    0   // bits 0-3: minimum stallGuard2 value
+#define TMC2130_COOLCONF_SEUP_SHIFT     5   // bits 5-6: current increment steps
+#define TMC2130_COOLCONF_SEMAX_SHIFT    8   // bits 8-11: stallGuard2 hysteresis value
+#define TMC2130_COOLCONF_SEDN_SHIFT     13  // bits 13-14: current decrement speed
+#define TMC2130_COOLCONF_SEIMIN_SHIFT   15  // bit 15: minimum current for smart current control
+#define TMC2130_COOLCONF_SGT_SHIFT      16  // bits 16-22: stallGuard2 threshold value
+#define TMC2130_COOLCONF_SFILT_SHIFT    24  // bit 24: stallGuard2 filter enable
+
+#define TMC2130_COOLCONF_SEMIN_MASK     0x0F
+#define TMC2130_COOLCONF_SEUP_MASK      0x03
+#define TMC2130_COOLCONF_SEMAX_MASK     0x0F
+#define TMC2130_COOLCONF_SEDN_MASK      0x03
+#define TMC2130_COOLCONF_SEIMIN_MASK    0x01
+#define TMC2130_COOLCONF_SGT_MASK       0x7F
+#define TMC2130_COOLCONF_SFILT_MASK     0x01
+
 #define _GET_PWR_X      (READ(X_ENABLE_PIN) == X_ENABLE_ON)
 #define _GET_PWR_Y      (READ(Y_ENABLE_PIN) == Y_ENABLE_ON)
 #define _GET_PWR_Z      (READ(Z_ENABLE_PIN) == Z_ENABLE_ON)
@@ -277,7 +294,7 @@ uint16_t tmc2130_rd_TSTEP(uint8_t axis);
 uint16_t tmc2130_rd_MSCNT(uint8_t axis);
 uint32_t tmc2130_rd_MSCURACT(uint8_t axis);
 
-static void tmc2130_wr_COOLCONF(uint8_t axis);
+static uint32_t tmc2130_calc_COOLCONF(uint8_t sg_threshold, uint8_t semin, uint8_t seup, uint8_t semax, uint8_t sedn, uint8_t seimin, uint8_t sfilt);
 
 #define tmc2130_rd(axis, addr, rval) tmc2130_rx(axis, addr, rval)
 #define tmc2130_wr(axis, addr, wval) tmc2130_tx(axis, (addr) | 0x80, wval)
@@ -325,8 +342,16 @@ void sg_thr_load_settings(uint8_t axis) {
 		tmc2130_sg_thr_home[axis] = tmc2130_sg_thr_home_1_8[axis];
 	}
 	
-	// Ensure immediate write in case this function is called as menu item change 
-	tmc2130_wr_COOLCONF(axis);
+	// Ensure immediate write in case this function is called as menu item change
+	if (axis == E_AXIS) {
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[axis],
+			TMC2130_COOLCONF_E_SEMIN, TMC2130_COOLCONF_E_SEUP, TMC2130_COOLCONF_E_SEMAX,
+			TMC2130_COOLCONF_E_SEDN, TMC2130_COOLCONF_E_SEIMIN, TMC2130_COOLCONF_E_SFILT));
+	} else {
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[axis],
+			TMC2130_COOLCONF_SEMIN, TMC2130_COOLCONF_SEUP, TMC2130_COOLCONF_SEMAX,
+			TMC2130_COOLCONF_SEDN, TMC2130_COOLCONF_SEIMIN, TMC2130_COOLCONF_SFILT));
+	}
 }
 
 // Convert velocity in mm/s to TCOOLTHRS register value
@@ -364,7 +389,9 @@ static void tmc2130_XYZ_reg_init(uint8_t axis)
 	if (axis == Z_AXIS) {
 #ifdef TMC2130_STEALTH_Z
 		// https://www.analog.com/media/en/technical-documentation/data-sheets/tmc2130_datasheet_rev1.15.pdf for COOLCONF settings
-		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24));
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[axis],
+			TMC2130_COOLCONF_SEMIN, TMC2130_COOLCONF_SEUP, TMC2130_COOLCONF_SEMAX,
+			TMC2130_COOLCONF_SEDN, TMC2130_COOLCONF_SEIMIN, TMC2130_COOLCONF_SFILT));
 		tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, isStealth ? 0 : __tcoolthrs(axis));
 		tmc2130_wr(axis, TMC2130_REG_GCONF, isStealth ? TMC2130_GCONF_SILENT : TMC2130_GCONF_DYNAMIC_SGSENS);
 		tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
@@ -373,7 +400,9 @@ static void tmc2130_XYZ_reg_init(uint8_t axis)
 		tmc2130_wr(axis, TMC2130_REG_GCONF, TMC2130_GCONF_SGSENS);
 #endif // TMC2130_STEALTH_Z
 	} else { // X Y
-		tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[axis]) << 16) | ((uint32_t)1 << 24));
+		tmc2130_wr(axis, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[axis],
+			TMC2130_COOLCONF_SEMIN, TMC2130_COOLCONF_SEUP, TMC2130_COOLCONF_SEMAX,
+			TMC2130_COOLCONF_SEDN, TMC2130_COOLCONF_SEIMIN, TMC2130_COOLCONF_SFILT));
 		tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, isStealth ? 0 : __tcoolthrs(axis));
 		tmc2130_wr(axis, TMC2130_REG_GCONF, isStealth ? TMC2130_GCONF_SILENT : TMC2130_GCONF_SGSENS);
 		tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
@@ -414,7 +443,9 @@ void tmc2130_init(TMCInitParams params)
     if( ! params.enableECool ){
         tmc2130_wr(E_AXIS, TMC2130_REG_GCONF, TMC2130_GCONF_SGSENS);
     } else {
-        tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[E_AXIS]) << 16));
+        tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[E_AXIS],
+            TMC2130_COOLCONF_E_SEMIN, TMC2130_COOLCONF_E_SEUP, TMC2130_COOLCONF_E_SEMAX,
+            TMC2130_COOLCONF_E_SEDN, TMC2130_COOLCONF_E_SEIMIN, TMC2130_COOLCONF_E_SFILT));
         tmc2130_wr(E_AXIS, TMC2130_REG_TCOOLTHRS, 0);
         tmc2130_wr(E_AXIS, TMC2130_REG_GCONF, TMC2130_GCONF_SILENT);
         tmc2130_wr(E_AXIS, TMC2130_REG_PWMCONF, pwmconf_Ecool.dw);
@@ -422,7 +453,9 @@ void tmc2130_init(TMCInitParams params)
         SERIAL_ECHOLNRPGM(eMotorCurrentScalingEnabled);
     }
 #else //TMC2130_STEALTH_E
-    tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr[E_AXIS]) << 16));
+    tmc2130_wr(E_AXIS, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr[E_AXIS],
+        TMC2130_COOLCONF_E_SEMIN, TMC2130_COOLCONF_E_SEUP, TMC2130_COOLCONF_E_SEMAX,
+        TMC2130_COOLCONF_E_SEDN, TMC2130_COOLCONF_E_SEIMIN, TMC2130_COOLCONF_E_SFILT));
     tmc2130_wr(E_AXIS, TMC2130_REG_TCOOLTHRS, 0);
     tmc2130_wr(E_AXIS, TMC2130_REG_GCONF, TMC2130_GCONF_SILENT);
     tmc2130_wr(E_AXIS, TMC2130_REG_PWMCONF, pwmconf[E_AXIS].dw);
@@ -497,7 +530,9 @@ void tmc2130_home_enter(uint8_t axes_mask)
 			tmc2130_sg_homing_axes_mask |= mask;
 			//Configuration to spreadCycle
 			tmc2130_wr(axis, TMC2130_REG_GCONF, TMC2130_GCONF_NORMAL);
-			tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr_home[axis]) << 16));
+			tmc2130_wr(axis, TMC2130_REG_COOLCONF, tmc2130_calc_COOLCONF(tmc2130_sg_thr_home[axis],
+				TMC2130_COOLCONF_SEMIN, TMC2130_COOLCONF_SEUP, TMC2130_COOLCONF_SEMAX,
+				TMC2130_COOLCONF_SEDN, TMC2130_COOLCONF_SEIMIN, TMC2130_COOLCONF_SFILT));
 			tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, __tcoolthrs(axis));
 			MotorCurrents curr(homing_currents_P[axis]);
 			
@@ -689,12 +724,37 @@ void tmc2130_set_pwm_grad(uint8_t axis, uint8_t pwm_grad)
         tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
 }
 
-static void tmc2130_wr_COOLCONF(uint8_t axis)
+static uint32_t tmc2130_calc_COOLCONF(uint8_t sg_threshold, uint8_t semin, uint8_t seup, uint8_t semax, uint8_t sedn, uint8_t seimin, uint8_t sfilt)
 {
-	uint32_t coolconf = ((uint32_t)tmc2130_sg_thr[axis]) << 16;
-	coolconf |= (axis == E_AXIS) ? 0 : ((uint32_t)1 << 24);
-	tmc2130_wr(axis, TMC2130_REG_COOLCONF, coolconf);
+	// Calculate COOLCONF register value with proper coolStep configuration
+	// Based on TMC2130 datasheet rev1.15 and Analog Devices AN-026
+	uint32_t coolconf = 0;
+
+	// Set stallGuard2 threshold (SGT) - bits 16-22
+	coolconf |= ((uint32_t)(sg_threshold & TMC2130_COOLCONF_SGT_MASK)) << TMC2130_COOLCONF_SGT_SHIFT;
+
+	// Set stallGuard2 filter enable (SFILT) - bit 24
+	coolconf |= ((uint32_t)(sfilt & TMC2130_COOLCONF_SFILT_MASK)) << TMC2130_COOLCONF_SFILT_SHIFT;
+
+	// Set minimum stallGuard2 value (SEMIN) - bits 0-3
+	coolconf |= ((uint32_t)(semin & TMC2130_COOLCONF_SEMIN_MASK)) << TMC2130_COOLCONF_SEMIN_SHIFT;
+
+	// Set current increment steps (SEUP) - bits 5-6
+	coolconf |= ((uint32_t)(seup & TMC2130_COOLCONF_SEUP_MASK)) << TMC2130_COOLCONF_SEUP_SHIFT;
+
+	// Set stallGuard2 hysteresis (SEMAX) - bits 8-11
+	coolconf |= ((uint32_t)(semax & TMC2130_COOLCONF_SEMAX_MASK)) << TMC2130_COOLCONF_SEMAX_SHIFT;
+
+	// Set current decrement speed (SEDN) - bits 13-14
+	coolconf |= ((uint32_t)(sedn & TMC2130_COOLCONF_SEDN_MASK)) << TMC2130_COOLCONF_SEDN_SHIFT;
+
+	// Set minimum current for smart current control (SEIMIN) - bit 15
+	coolconf |= ((uint32_t)(seimin & TMC2130_COOLCONF_SEIMIN_MASK)) << TMC2130_COOLCONF_SEIMIN_SHIFT;
+
+	return coolconf;
 }
+
+
 
 uint16_t tmc2130_rd_TSTEP(uint8_t axis)
 {
@@ -978,7 +1038,7 @@ void tmc2130_get_wave(uint8_t axis, uint8_t* data)
 	tmc2130_set_pwr(axis, pwr);
 }
 
-// Calculate constant torque value for a given microstep positionAdd commentMore actions
+// Calculate constant torque value for a given microstep position
 //
 // Maintains |A|² + |B|² = constant throughout the microstep cycle, where A and B are the two motor phases. 
 // Uses a two-phase approach: positions 0-127 follow a power-corrected sine curve, 
@@ -1004,7 +1064,7 @@ void tmc2130_get_wave(uint8_t axis, uint8_t* data)
 // - Analog Devices AN-026: "Stepper Motor Control Using TMC2130"
 //   https://www.analog.com/en/resources/app-notes/an-026.html
 uint8_t tmc2130_calc_constant_torque_value(uint8_t i, uint8_t va, float fac, float tcorr,
-                                          float& prev_theoretical_value) {
+                                          float& carry, float& prev_theoretical_value) {
 	constexpr uint8_t SIN0 = 0;
 	constexpr uint8_t AMP = 248;  // Amplitude limit as per AN-026 recommendation
 	constexpr float TARGET_MAGNITUDE_SQUARED = (float)AMP * AMP + (float)SIN0 * SIN0;
@@ -1033,8 +1093,10 @@ uint8_t tmc2130_calc_constant_torque_value(uint8_t i, uint8_t va, float fac, flo
 		theoretical_value = sqrt(TARGET_MAGNITUDE_SQUARED - mirror_theoretical * mirror_theoretical);
 	}
 
-	// Step 1: Initial quantization using simple rounding
-	uint8_t candidate_value = (uint8_t)(theoretical_value + 0.5);
+	// Step 1: Apply carry mechanism and initial quantization
+	// Carry compensates for accumulated rounding errors from previous steps
+	float adjusted_theoretical = theoretical_value - carry;
+	uint8_t candidate_value = (uint8_t)(adjusted_theoretical + 0.5);
 
 	// Step 2: Slope-based delta limiting for TMC2130 compression
 	// Calculate slope between current and previous theoretical values
@@ -1068,11 +1130,15 @@ uint8_t tmc2130_calc_constant_torque_value(uint8_t i, uint8_t va, float fac, flo
 		candidate_value = AMP;
 	}
 
+	// Step 4: Update carry for next iteration
+	// Carry = quantization_error = actual_output - theoretical_target
+	carry = candidate_value - theoretical_value;
 	// Update previous theoretical value for next slope calculation
 	prev_theoretical_value = theoretical_value;
 
 	return candidate_value;
 }
+
 
 // TMC2130 Wave Generation with Algorithm Selection
 //
@@ -1102,6 +1168,7 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 	uint32_t reg = 0;              //tmc2130 register
 
 	// Constant torque algorithm parameters (only used if use_constant_torque is true)
+	float carry = 0.0;  // Carry value to handle rounding adjustments
 	float prev_theoretical_value = 0.0;  // Cache previous theoretical value for slope calculation (initialized with SIN0)
 	float tcorr = 1.0;  // Pre-calculated correction factor for constant torque algorithm
 
@@ -1126,7 +1193,7 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 			reg = 0;
 
 		if (use_constant_torque) {
-			vA = tmc2130_calc_constant_torque_value(i, va, fac, tcorr, prev_theoretical_value);
+			vA = tmc2130_calc_constant_torque_value(i, va, fac, tcorr, carry, prev_theoretical_value);
 		} else {
 			// calculate value
 			if (fac == 1) // default TMC wave
@@ -1165,7 +1232,7 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 				case  3: d0 =  2; d1 = 3; w[s+1] = 3; break;
 				default: b = -1; break;
 				}
-			    if (b >= 0) { x[s] = i; s++; }
+				if (b >= 0) { x[s] = i; s++; }
 			}
 		}
 		if (b < 0) break; // delta out of range (<-1 or >3)
