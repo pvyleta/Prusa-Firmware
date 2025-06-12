@@ -17,7 +17,7 @@
 #define NOZZLE_TYPE "E3DREVO_HF_60W"
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "Prusa MK3S+RHF60"
+#define CUSTOM_MENDEL_NAME "Prusa MK3S+RHF 0.9"
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
@@ -34,6 +34,58 @@
 //#define E3D_PT100_BED_WITH_AMP
 //#define E3D_PT100_BED_NO_AMP
 
+
+/*------------------------------------
+ 0.9 Degree steppers
+ *------------------------------------*/
+
+// Motors used should be 1 amp or lower current rating to avoid overheating TMC2130 drivers in Stealthchop.
+// Recommended 0.9 degree motors for X, Y, or direct drive E are Moons MS17HA2P4100 or OMC 17HM15-0904S
+
+#define STEPPER_DEFAULT 0xFF // Prusa 1.8° steppers
+#define STEPPER_0_9_MOONS 0 // Moons MS17HA2P4100 0.9° steppers
+#define STEPPER_0_9_OMC 1 // OMC-Stepperonline 17HM15-0904S 0.9° stepper
+#define STEPPER_LAST_ITEM STEPPER_0_9_OMC
+
+#define TMC2130_USTEPS_XYZ_0_9   8  // reduce X microsteps to 8 because EINSY cannot keep up with 16 on 0.9 degree motor
+#define TMC2130_USTEPS_E_0_9 16 // 0.9 motor, non-geared
+// Note: we are not changing axis_steps_per_mm since axis_ustep_resolution affects tmc2130_mres, but we compensate by using 0.9 steppers
+
+#define X_AXIS_current_r_home_0_9 10  // adjust x homing current slightly higher for 0.9 x
+#define Y_AXIS_current_r_home_0_9 12  // adjust y homing current slightly higher for 0.9 y
+
+// TMC2130_PWM_GRAD & TMC2130_PWM_AMPL tuned for 09 motor.
+// Better axis motion control with lower TMC2130_PWM_GRAD 2,3,4 but can squeak during fast declerations.
+// TMC2130_PWM_GRAD too high causes y-layer shifts
+// TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y.
+// Raised TMC2130_PWM_AMPL_[xyze] by 5 to prevent skipping as the 0.9 steppers are slightly weaker than stock
+
+#define TMC2130_PWM_GRAD_X_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_Y_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_Z_0_9  4   // PWM_GRAD
+#define TMC2130_PWM_GRAD_E_0_9  4   // PWM_GRAD
+
+#define TMC2130_PWM_AMPL_X_0_9  235 // PWMCONF
+#define TMC2130_PWM_AMPL_Y_0_9  240 // PWMCONF
+#define TMC2130_PWM_AMPL_Z_0_9  205 // PWMCONF
+#define TMC2130_PWM_AMPL_E_0_9  245 // PWMCONF
+
+// Values below tuned by Kuo, however, MK4 uses (3, 6, -2, 2)  on 0.9 steppers,
+// as those supposedly are Prusa valus according to Marlin.
+// Odd as this FW otherwise uses (3, 5, 1, 2). Seems the impact might be negligible.
+#define TMC2130_TOFF_XYZE_0_9 2
+#define TMC2130_HSTR_XYZE_0_9 2
+#define TMC2130_HEND_XYZE_0_9 0
+#define TMC2130_TBL_XYZE_0_9  2
+
+#define TMC2130_SG_THRS_X_0_9 4
+#define TMC2130_SG_THRS_Y_0_9 5 // Increased from 4 for OMC with 9mm belt
+#define TMC2130_SG_THRS_Z_0_9 4
+#define TMC2130_SG_THRS_E_0_9 3
+
+#define TMC2130_SG_THRS_HOME_0_9 {4, 4, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
+
+#define HOMING_CNT_MIN_0_9 10  // 0.9 motors often home at much lower count
 
 /*------------------------------------
  AXIS SETTINGS
@@ -267,6 +319,13 @@
 #define TMC2130_TPWMTHRS_E 403      // Switch extruder from StealthChop to SpreadCycle at around 900mm/min
 #define TMC2130_THIGH     0         // THIGH - unused
 
+// Define coolStep threshold speeds in mm/s
+// coolStep becomes active when the stepper speed drops below this threshold
+#define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_E_SPEED 11  // E axis coolStep threshold in mm/s
+
 //#define TMC2130_TCOOLTHRS_X 450       // TCOOLTHRS - coolstep treshold
 //#define TMC2130_TCOOLTHRS_Y 450       // TCOOLTHRS - coolstep treshold
 #define TMC2130_TCOOLTHRS_X 430       // TCOOLTHRS - coolstep treshold
@@ -290,7 +349,7 @@
 #define TMC2130_STEALTH_Z
 #define TMC2130_DEDGE_STEPPING
 
-//#define TMC2130_SERVICE_CODES_M910_M918
+//#define TMC2130_SERVICE_CODES_M910_M918 // Useful for tuning the motors
 
 //#define TMC2130_DEBUG
 //#define TMC2130_DEBUG_WR
