@@ -11,6 +11,11 @@ extern uint8_t tmc2130_mres[4];
 
 //flags for axis stall detection
 extern uint8_t tmc2130_sg_thr[4];
+extern uint8_t tmc2130_sg_thr_home[4];
+	
+extern void chopper_config_eeprom_load_settings();
+extern void pwmconf_load_settings(uint8_t axis);
+extern void sg_thr_load_settings(uint8_t axis);				   
 
 extern bool tmc2130_sg_stop_on_crash;
 extern uint8_t tmc2130_sg_crash; //crash mask
@@ -60,6 +65,33 @@ typedef struct
 	uint8_t res:3;
 } tmc2130_chopper_config_t;
 #pragma pack(pop)
+
+static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_1_8 =
+{
+    .toff = TMC2130_TOFF_XYZ,
+    .hstr = 5,
+    .hend = 1,
+    .tbl = 2,
+    .res = 0
+};
+
+static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_1_8_cnstoff =
+{
+    .toff = TMC2130_TOFF_E,
+    .hstr = 0,
+    .hend = 0,
+    .tbl = 2,
+    .res = 0
+};
+
+static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_0_9 = 
+{
+	.toff = TMC2130_TOFF_XYZE_0_9,
+	.hstr = TMC2130_HSTR_XYZE_0_9,
+	.hend = TMC2130_HEND_XYZE_0_9,
+	.tbl = TMC2130_TBL_XYZE_0_9,
+	.res = 0
+};
 
 extern tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS];
 

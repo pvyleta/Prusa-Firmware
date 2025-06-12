@@ -45,6 +45,7 @@ typedef struct
     uint8_t n_arc_correction; // If equal to zero, this is disabled
     uint16_t min_arc_segments; // If equal to zero, this is disabled
     uint16_t arc_segments_per_sec; // If equal to zero, this is disabled
+    unsigned char stepper_type[4]; //!< One of known custom stepper types
 } M500_conf;
 
 extern M500_conf cs;
