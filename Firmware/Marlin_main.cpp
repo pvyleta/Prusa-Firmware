@@ -268,6 +268,8 @@ float feedrate = 1500.0;
 // Original feedrate saved during homing moves
 static float saved_feedrate;
 
+float homing_feedrate[] = HOMING_FEEDRATE; // Cannot be constexpr as we need ability to change it
+
 static const int8_t sensitive_pins[] PROGMEM = SENSITIVE_PINS; // Sensitive pin list for M42
 
 //static float tt = 0;
@@ -1035,6 +1037,26 @@ static void xflash_err_msg()
     lcd_show_fullscreen_message_and_wait_P(_n("External SPI flash\nXFLASH is not res-\nponding. Language\nswitch unavailable."));
 }
 
+static void homing_feedrate_load_settings()
+{
+  for (uint8_t axis = 0; axis < Z_AXIS; axis++) {
+    switch (cs.stepper_type[axis])
+    {
+      //CLX measurements suggest OMC at 2500 and Moons at 2400
+      case STEPPER_0_9_MOONS:
+        homing_feedrate[axis] = 2400;
+        break;
+      case STEPPER_0_9_OMC:
+        homing_feedrate[axis] = 2500;
+        break;
+      case STEPPER_DEFAULT:
+      default:
+        homing_feedrate[axis] = 3000;
+        break;
+    }
+  }
+}
+
 // "Setup" function is called by the Arduino framework on startup.
 // Before startup, the Timers-functions (PWM)/Analog RW and HardwareSerial provided by the Arduino-code
 // are initialized by the main() routine provided by the Arduino framework.
@@ -1301,6 +1323,14 @@ void setup()
 	tmc2130_mres[Z_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_Z);
 	tmc2130_mres[E_AXIS] = tmc2130_usteps2mres(TMC2130_USTEPS_E);
 #endif //TMC2130_VARIABLE_RESOLUTION
+
+  chopper_config_eeprom_load_settings();
+  homing_feedrate_load_settings();
+  
+  for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+    pwmconf_load_settings(axis);
+    sg_thr_load_settings(axis);
+  }
 
 #endif //TMC2130
 	st_init();    // Initialize stepper, this enables interrupts!
@@ -2131,7 +2161,11 @@ void homeaxis(uint8_t axis, uint8_t cnt)
 #ifdef TMC2130
 		uint8_t orig = tmc2130_home_origin[axis];
 		uint8_t back = tmc2130_home_bsteps[axis];
-		if (tmc2130_home_enabled && (orig <= 63))
+    
+    //0.9 motors often home at much lower count
+    uint8_t homing_cnt_min = (cs.stepper_type[axis] != STEPPER_DEFAULT) ? HOMING_CNT_MIN_0_9 : 63;
+
+    if (tmc2130_home_enabled && (orig <= homing_cnt_min))
 		{
 			tmc2130_goto_step(axis, orig, 2, 1000, tmc2130_get_res(axis));
 			if (back > 0)
@@ -2581,8 +2615,8 @@ static void gcode_G28(bool home_x_axis, bool home_y_axis, bool home_z_axis)
 // G80 - Automatic mesh bed leveling
 static void gcode_G80()
 {
-    constexpr float XY_AXIS_FEEDRATE = (homing_feedrate[X_AXIS] * 3) / 60;
-    constexpr float Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 60;
+    float XY_AXIS_FEEDRATE = (homing_feedrate[X_AXIS] * 3) / 60;
+    float Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 60;
     constexpr float Z_CALIBRATION_THRESHOLD_TIGHT = 0.6f; // used for 7x7 MBL
     constexpr float Z_CALIBRATION_THRESHOLD_RELAXED = 1.f; // used for 3x3 MBL
     constexpr float MESH_HOME_Z_SEARCH_FAST = 0.35f;
@@ -7816,6 +7850,43 @@ void process_commands()
     break;
 
 #endif //TMC2130_SERVICE_CODES_M910_M918
+
+    /*!
+    ### M925 - Set sg_thrs_home
+    #### Usage
+
+        M924 [ X | Y | Z | E ]
+        
+    */
+    case 924:
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            tmc2130_sg_thr_home[axis] = code_value();
+            printf_P(_N("tmc2130_sg_thr_home[%c]=%d\n"), "XYZE"[axis], tmc2130_sg_thr_home[axis]);
+        }
+      }
+    }
+    break;
+
+    /*!
+    ### M925 - Set homing feed rate
+    #### Usage
+
+        M925 [ X | Y | Z ]
+
+    */
+    case 925:
+    {
+      for (uint8_t axis = 0; axis < NUM_AXIS-1; axis++) {
+        if (code_seen(axis_codes[axis])) {
+            homing_feedrate[axis] = code_value();
+            printf_P(_N("homing_feedrate[%c]=%d\n"), "XYZE"[axis], homing_feedrate[axis]);
+        }
+      }
+    }
+    break;
+
 #endif // TMC2130
 
     /*!

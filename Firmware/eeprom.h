@@ -669,8 +669,11 @@ static Sheets * const EEPROM_Sheets_base = (Sheets*)(EEPROM_SHEETS_BASE);
 #define EEPROM_UVLO_MAX_JERK (EEPROM_UVLO_MIN_SEGMENT_TIME_US-4*4) // 4 x float
 #define EEPROM_CHECK_FILAMENT (EEPROM_UVLO_MAX_JERK-1) // uint8_t
 
-// TMC2130 Wave Algorithm Selection
-#define EEPROM_TMC2130_WAVE_ALGORITHM (EEPROM_CHECK_FILAMENT - 1) // uint8
+// TMC2130 chopper config
+#define EEPROM_TMC2130_CHOPPER_CONFIG (EEPROM_CHECK_FILAMENT - 8) //4 x uint16_t
+
+// TMC2130 Wave Algorithm Selection (added after chopper config)
+#define EEPROM_TMC2130_WAVE_ALGORITHM (EEPROM_TMC2130_CHOPPER_CONFIG - 1) // uint8
 
 //This is supposed to point to last item to allow EEPROM overrun check. Please update when adding new items.
 #define EEPROM_LAST_ITEM EEPROM_TMC2130_WAVE_ALGORITHM

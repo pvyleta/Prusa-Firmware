@@ -139,8 +139,13 @@ static constexpr PWMConfU pwmconf_Ecool = PWMConfU(PWMCONF_REG(TMC2130_PWM_AMPL_
 
 uint8_t tmc2130_mres[4] = {0, 0, 0, 0}; //will be filed at begin of init
 
+static constexpr uint8_t tmc2130_sg_thr_0_9[4] = {TMC2130_SG_THRS_X_0_9, TMC2130_SG_THRS_Y_0_9, TMC2130_SG_THRS_Z_0_9, TMC2130_SG_THRS_E_0_9};
+static constexpr uint8_t tmc2130_sg_thr_1_8[4] = {TMC2130_SG_THRS_X, TMC2130_SG_THRS_Y, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E};
+static constexpr uint8_t tmc2130_sg_thr_home_0_9[4] = TMC2130_SG_THRS_HOME_0_9; 
+static constexpr uint8_t tmc2130_sg_thr_home_1_8[4] = TMC2130_SG_THRS_HOME;
+
 uint8_t tmc2130_sg_thr[4] = {TMC2130_SG_THRS_X, TMC2130_SG_THRS_Y, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E};
-static uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME;
+uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME;
 
 
 uint8_t tmc2130_sg_homing_axes_mask = 0x00;
@@ -271,11 +276,57 @@ uint16_t tmc2130_rd_TSTEP(uint8_t axis);
 uint16_t tmc2130_rd_MSCNT(uint8_t axis);
 uint32_t tmc2130_rd_MSCURACT(uint8_t axis);
 
+static void tmc2130_wr_COOLCONF(uint8_t axis);
+
 #define tmc2130_rd(axis, addr, rval) tmc2130_rx(axis, addr, rval)
 #define tmc2130_wr(axis, addr, wval) tmc2130_tx(axis, (addr) | 0x80, wval)
 
 static void tmc2130_tx(uint8_t axis, uint8_t addr, uint32_t wval);
 static uint8_t tmc2130_rx(uint8_t axis, uint8_t addr, uint32_t* rval);
+
+void chopper_config_eeprom_load_settings()
+{
+	// If EEPROM is not initialized, keep it like that and leave tmc2130_chopper_config defaults.
+	// This makes it possible to transition to stock FW without erasing the EEPROM
+	for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+		tmc2130_chopper_config_t* const eeprom_chopper_config = &((tmc2130_chopper_config_t*)EEPROM_TMC2130_CHOPPER_CONFIG)[axis];
+		if (eeprom_is_initialized_block(eeprom_chopper_config, sizeof(tmc2130_chopper_config_t)))
+		{
+			eeprom_read_block(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
+		}
+	}
+}
+
+// Set PWM based on stepper_type
+void pwmconf_load_settings(uint8_t axis)
+{
+	static constexpr uint32_t PWM_AMPL_0_9[NUM_AXIS] = {TMC2130_PWM_AMPL_X_0_9, TMC2130_PWM_AMPL_Y_0_9, TMC2130_PWM_AMPL_Z_0_9, TMC2130_PWM_AMPL_E_0_9};
+	static constexpr uint32_t PWM_GRAD_0_9[NUM_AXIS] = {TMC2130_PWM_GRAD_X_0_9, TMC2130_PWM_GRAD_Y_0_9, TMC2130_PWM_GRAD_Z_0_9, TMC2130_PWM_GRAD_E_0_9};
+
+	if (cs.stepper_type[axis] != STEPPER_DEFAULT) {
+		pwmconf[axis] = PWMConfU(PWMCONF_REG(PWM_AMPL_0_9[axis], PWM_GRAD_0_9[axis], PWM_FREQ[axis], PWM_AUTO[axis]));
+	}
+	else {
+		pwmconf[axis] = PWMConfU(PWMCONF_REG(PWM_AMPL[axis], PWM_GRAD[axis], PWM_FREQ[axis], PWM_AUTO[axis]));
+	}
+	
+	// Ensure immediate write in case this function is called as menu item change 
+	tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
+};
+
+// Set Stallguard Threshold based on stepper_type
+void sg_thr_load_settings(uint8_t axis) {
+	if (cs.stepper_type[axis] != STEPPER_DEFAULT) {
+		tmc2130_sg_thr[axis] = tmc2130_sg_thr_0_9[axis];
+		tmc2130_sg_thr_home[axis] = tmc2130_sg_thr_home_0_9[axis];
+	} else {
+		tmc2130_sg_thr[axis] = tmc2130_sg_thr_1_8[axis];
+		tmc2130_sg_thr_home[axis] = tmc2130_sg_thr_home_1_8[axis];
+	}
+	
+	// Ensure immediate write in case this function is called as menu item change 
+	tmc2130_wr_COOLCONF(axis);
+}
 
 uint16_t __tcoolthrs(uint8_t axis)
 {
@@ -431,6 +482,24 @@ void tmc2130_home_enter(uint8_t axes_mask)
 			tmc2130_wr(axis, TMC2130_REG_COOLCONF, (((uint32_t)tmc2130_sg_thr_home[axis]) << 16));
 			tmc2130_wr(axis, TMC2130_REG_TCOOLTHRS, __tcoolthrs(axis));
 			MotorCurrents curr(homing_currents_P[axis]);
+			
+			// Adjust run and hold currents for homing for 0.9degree steppers
+			if (cs.stepper_type[axis] == STEPPER_0_9_MOONS || cs.stepper_type[axis] == STEPPER_0_9_OMC)
+			{
+				switch (axis)
+				{
+					case X_AXIS:
+						curr.setiRun(X_AXIS_current_r_home_0_9);
+						curr.setiHold(X_AXIS_current_r_home_0_9);
+						break;
+					case Y_AXIS:
+						curr.setiRun(Y_AXIS_current_r_home_0_9);
+						curr.setiHold(Y_AXIS_current_r_home_0_9);
+						break;
+					default:
+						break;
+				}
+			}
 			tmc2130_setup_chopper(axis, tmc2130_mres[axis], &curr);
 			tmc2130_wr(axis, TMC2130_REG_GCONF, TMC2130_GCONF_SGSENS); //stallguard output DIAG1, DIAG1 = pushpull
 		}
@@ -600,6 +669,13 @@ void tmc2130_set_pwm_grad(uint8_t axis, uint8_t pwm_grad)
     pwmconf[axis].s.pwm_grad = pwm_grad;
     if (((axis == X_AXIS) || (axis == Y_AXIS)) && (tmc2130_mode == TMC2130_MODE_SILENT))
         tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
+}
+
+static void tmc2130_wr_COOLCONF(uint8_t axis)
+{
+	uint32_t coolconf = ((uint32_t)tmc2130_sg_thr[axis]) << 16;
+	coolconf |= (axis == E_AXIS) ? 0 : ((uint32_t)1 << 24);
+	tmc2130_wr(axis, TMC2130_REG_COOLCONF, coolconf);
 }
 
 uint16_t tmc2130_rd_TSTEP(uint8_t axis)
