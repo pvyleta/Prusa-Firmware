@@ -317,6 +317,18 @@ extern const char MSG_X_CORRECTION [] PROGMEM_I1 = ISTR("X-correct"); ////MSG_X_
 extern const char MSG_Y_CORRECTION [] PROGMEM_I1 = ISTR("Y-correct"); ////MSG_Y_CORRECTION c=13
 extern const char MSG_Z_CORRECTION [] PROGMEM_I1 = ISTR("Z-correct"); ////MSG_Z_CORRECTION c=13
 extern const char MSG_EXTRUDER_CORRECTION [] PROGMEM_I1 = ISTR("E-correct"); ////MSG_EXTRUDER_CORRECTION c=13
+extern const char MSG_WAVE_ALGORITHM [] PROGMEM_I1 = ISTR("Algorithm"); ////MSG_WAVE_ALGORITHM c=13
+extern const char MSG_ALGORITHM_DEFAULT [] PROGMEM_I1 = ISTR("Default"); ////MSG_ALGORITHM_DEFAULT c=13
+extern const char MSG_ALGORITHM_CONST_TQ [] PROGMEM_I1 = ISTR("Const tq"); ////MSG_ALGORITHM_CONST_TQ c=13
+extern const char MSG_CUSTOM_STEPPERS [] PROGMEM_I1 = ISTR("Custom steppers"); ////MSG_CUSTOM_STEPPERS c=18
+extern const char MSG_TOFF [] PROGMEM_I1 = ISTR("toff"); ////MSG_TOFF c=13
+extern const char MSG_HSTR [] PROGMEM_I1 = ISTR("hstr"); ////MSG_HSTR c=13
+extern const char MSG_HEND [] PROGMEM_I1 = ISTR("hend"); ////MSG_HEND c=13
+extern const char MSG_TBL [] PROGMEM_I1 = ISTR("tbl"); ////MSG_TBL c=13
+extern const char MSG_X_CHOPPER_CFG [] PROGMEM_I1 = ISTR("X chopper cfg"); ////MSG_X_CHOPPER_CFG c=18
+extern const char MSG_Y_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Y chopper cfg"); ////MSG_Y_CHOPPER_CFG c=18
+extern const char MSG_Z_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Z chopper cfg"); ////MSG_Z_CHOPPER_CFG c=18
+extern const char MSG_E_CHOPPER_CFG [] PROGMEM_I1 = ISTR("E chopper cfg"); ////MSG_E_CHOPPER_CFG c=18
 extern const char MSG_CHECKS [] PROGMEM_I1 = ISTR("Checks"); ////MSG_CHECKS c=18
 extern const char MSG_TEMPERATURE [] PROGMEM_I1 = ISTR("Temperature"); ////MSG_TEMPERATURE c=18
 extern const char MSG_MOVE_AXIS [] PROGMEM_I1 = ISTR("Move axis"); ////MSG_MOVE_AXIS c=18
@@ -377,6 +389,7 @@ extern const char MSG_SD_REMOVED [] PROGMEM_I1 = ISTR("Card removed"); ////MSG_S
 extern const char MSG_NEW_FIRMWARE_AVAILABLE [] PROGMEM_I1 = ISTR("New firmware version available:"); ////MSG_NEW_FIRMWARE_AVAILABLE c=20 r=2
 extern const char MSG_NEW_FIRMWARE_PLEASE_UPGRADE [] PROGMEM_I1 = ISTR("Please upgrade."); ////MSG_NEW_FIRMWARE_PLEASE_UPGRADE c=20
 extern const char MSG_FW_MK3_DETECTED [] PROGMEM_I1 = ISTR(PRINTER_NAME " firmware detected on " PRINTER_NAME_ALTERNATE " printer"); ////MSG_FW_MK3_DETECTED c=20 r=4
+
 //not internationalized messages
 const char MSG_SPOOL_JOIN[] PROGMEM_N1 = "SpoolJoin"; ////MSG_SPOOL_JOIN c=13
 const char MSG_FIRMWARE[] PROGMEM_N1 = "Firmware"; ////MSG_FIRMWARE c=8

@@ -465,6 +465,54 @@ msgstr "Kesz"
 msgid "E-correct"
 msgstr "E-korrekcio"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritmus"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Alapért."
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Áll.nyom"
+
+#. MSG_CUSTOM_STEPPERS c=15
+msgid "Custom steppers"
+msgstr "Egyedi motorok"
+
+#. MSG_TOFF c=4
+msgid "toff"
+msgstr "toff"
+
+#. MSG_HSTR c=4
+msgid "hstr"
+msgstr "hstr"
+
+#. MSG_HEND c=4
+msgid "hend"
+msgstr "hend"
+
+#. MSG_TBL c=3
+msgid "tbl"
+msgstr "tbl"
+
+#. MSG_X_CHOPPER_CFG c=13
+msgid "X chopper cfg"
+msgstr "X chopper konf"
+
+#. MSG_Y_CHOPPER_CFG c=13
+msgid "Y chopper cfg"
+msgstr "Y chopper konf"
+
+#. MSG_Z_CHOPPER_CFG c=13
+msgid "Z chopper cfg"
+msgstr "Z chopper konf"
+
+#. MSG_E_CHOPPER_CFG c=13
+msgid "E chopper cfg"
+msgstr "E chopper konf"
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48

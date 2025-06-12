@@ -464,6 +464,54 @@ msgstr "Konec"
 msgid "E-correct"
 msgstr "Korekce E"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritmus"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Výchozí"
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Kst. mom."
+
+#. MSG_CUSTOM_STEPPERS c=15
+msgid "Custom steppers"
+msgstr "Vlastní krokové"
+
+#. MSG_TOFF c=4
+msgid "toff"
+msgstr "toff"
+
+#. MSG_HSTR c=4
+msgid "hstr"
+msgstr "hstr"
+
+#. MSG_HEND c=4
+msgid "hend"
+msgstr "hend"
+
+#. MSG_TBL c=3
+msgid "tbl"
+msgstr "tbl"
+
+#. MSG_X_CHOPPER_CFG c=13
+msgid "X chopper cfg"
+msgstr "X konfig. chop."
+
+#. MSG_Y_CHOPPER_CFG c=13
+msgid "Y chopper cfg"
+msgstr "Y konfig. chop."
+
+#. MSG_Z_CHOPPER_CFG c=13
+msgid "Z chopper cfg"
+msgstr "Z konfig. chop."
+
+#. MSG_E_CHOPPER_CFG c=13
+msgid "E chopper cfg"
+msgstr "E konfig. chop."
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48
