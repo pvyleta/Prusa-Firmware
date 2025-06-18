@@ -65,24 +65,25 @@ linearity_factor: 1.0
 
 ```gcode
 TMC_SET_WAVE_X100    # Set X-axis to factor 1.1
-TMC_SET_WAVE_Y200    # Set Y-axis to factor 1.2  
+TMC_SET_WAVE_Y200    # Set Y-axis to factor 1.2
 TMC_SET_WAVE_E0      # Set extruder to factor 1.0 (disable)
 ```
 
-Factor encoding: `1000 + offset = final_factor * 1000`
-- `0` → 1.0 (no correction)
-- `100` → 1.1 (moderate correction)
-- `200` → 1.2 (maximum correction)
+**Available factor offsets**: 0, 10, 20, 30, ..., 190, 200 (steps of 10)
+- `TMC_SET_WAVE_E0` → factor 1.0 (no correction)
+- `TMC_SET_WAVE_E100` → factor 1.1 (moderate correction)
+- `TMC_SET_WAVE_E200` → factor 1.2 (maximum correction)
 
 ### TMC_SET_STEP - Precise Stepper Positioning
 
 ```gcode
 TMC_SET_STEP_X128    # Move X-axis to microstep position 128
 TMC_SET_STEP_Y0      # Move Y-axis to microstep position 0
-TMC_SET_STEP_E64     # Move extruder to microstep position 64
+TMC_SET_STEP_E1000   # Move extruder to microstep position 1000
 ```
 
-Position range: 0-255 (automatically masked to microstep resolution)
+**Available step positions**: 0, 2, 4, 6, ..., 1048, 1050 (steps of 2)
+- Range: 0-1050 (automatically masked to microstep resolution)
 
 ## Calibration Workflow
 

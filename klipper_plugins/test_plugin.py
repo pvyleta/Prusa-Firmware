@@ -92,16 +92,26 @@ class TestTMC2130LinearityCorrection(unittest.TestCase):
         """Test that G-code commands are registered"""
         plugin = self.TMC2130LinearityCorrection(self.mock_config)
 
-        # Commands are registered in handle_ready(), so call it
-        plugin.handle_ready()
+        # Check that individual commands were registered
+        # Should register TMC_SET_WAVE_X0, TMC_SET_WAVE_X10, ..., TMC_SET_WAVE_X200
+        # Should register TMC_SET_STEP_X0, TMC_SET_STEP_X2, ..., TMC_SET_STEP_X1050
 
-        # Test that the registration method exists and can be called
-        # The actual registration is tested in integration tests
-        self.assertTrue(hasattr(plugin, '_register_gcode_commands'))
-        self.assertTrue(hasattr(plugin, '_global_tmc_set_wave_handler'))
-        self.assertTrue(hasattr(plugin, '_global_tmc_set_step_handler'))
-        self.assertTrue(hasattr(plugin, 'cmd_TMC_SET_WAVE'))
-        self.assertTrue(hasattr(plugin, 'cmd_TMC_SET_STEP'))
+        # Verify register_command was called many times (21 wave + 526 step commands)
+        expected_wave_commands = 21  # 0, 10, 20, ..., 200
+        expected_step_commands = 526  # 0, 2, 4, ..., 1050
+        total_expected = expected_wave_commands + expected_step_commands
+
+        self.assertEqual(self.mock_gcode.register_command.call_count, total_expected)
+
+        # Check a few specific command registrations
+        call_args_list = self.mock_gcode.register_command.call_args_list
+        registered_commands = [call[0][0] for call in call_args_list]
+
+        # Should have registered some specific commands
+        self.assertIn("TMC_SET_WAVE_X0", registered_commands)
+        self.assertIn("TMC_SET_WAVE_X200", registered_commands)
+        self.assertIn("TMC_SET_STEP_X0", registered_commands)
+        self.assertIn("TMC_SET_STEP_X1050", registered_commands)
 
 class TestPluginConstants(unittest.TestCase):
     """Test plugin constants and defaults"""

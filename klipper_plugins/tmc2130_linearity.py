@@ -75,11 +75,29 @@ class TMC2130LinearityCorrection:
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
 
-        # Store axis letter for command handling
-        self.axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
+        # Register individual Prusa-style G-code commands for exact compatibility
+        gcode = self.printer.lookup_object("gcode")
 
-        # Register Prusa-style G-code commands in handle_ready to ensure proper initialization
-        # Commands will be registered when Klipper is fully ready
+        # Get axis letter for command names
+        axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
+
+        # Register TMC_SET_WAVE commands: TMC_SET_WAVE_E0, TMC_SET_WAVE_E10, ..., TMC_SET_WAVE_E200
+        for factor_offset in range(0, 201, 10):  # 0, 10, 20, ..., 200
+            cmd_name = f"TMC_SET_WAVE_{axis_letter}{factor_offset}"
+            gcode.register_command(
+                cmd_name,
+                lambda gcmd, offset=factor_offset: self._cmd_set_wave_with_offset(gcmd, offset),
+                desc=f"Set TMC2130 linearity factor to {1.0 + factor_offset/1000:.3f}"
+            )
+
+        # Register TMC_SET_STEP commands: TMC_SET_STEP_E0, TMC_SET_STEP_E2, ..., TMC_SET_STEP_E1050
+        for step_pos in range(0, 1051, 2):  # 0, 2, 4, ..., 1050
+            cmd_name = f"TMC_SET_STEP_{axis_letter}{step_pos}"
+            gcode.register_command(
+                cmd_name,
+                lambda gcmd, step=step_pos: self._cmd_set_step_with_position(gcmd, step),
+                desc=f"Move TMC2130 to microstep position {step_pos}"
+            )
     
     def handle_connect(self):
         """Called when Klipper connects to MCU"""
@@ -181,84 +199,8 @@ class TMC2130LinearityCorrection:
 
     def handle_ready(self):
         """Called when Klipper is ready"""
-        # Register G-code commands now that Klipper is fully initialized
-        self._register_gcode_commands()
-
         # Apply initial configuration
         self.printer.reactor.register_callback(self._apply_initial_config)
-
-    def _register_gcode_commands(self):
-        """Register Prusa-style G-code commands"""
-        try:
-            # Get the global command dispatcher
-            gcode = self.printer.lookup_object("gcode")
-
-            # Store reference to gcode for command registration
-            if not hasattr(gcode, '_tmc_linearity_handlers'):
-                gcode._tmc_linearity_handlers = {}
-                # Register a global command handler that will dispatch to individual instances
-                gcode.register_command("TMC_SET_WAVE", self._global_tmc_set_wave_handler,
-                                     desc="Set TMC2130 linearity correction")
-                gcode.register_command("TMC_SET_STEP", self._global_tmc_set_step_handler,
-                                     desc="Move TMC2130 to specific microstep position")
-
-            # Register this instance's handlers
-            gcode._tmc_linearity_handlers[self.axis_letter] = self
-
-            logging.info(f"Registered TMC2130 linearity correction for axis {self.axis_letter} ({self.name})")
-
-        except Exception as e:
-            logging.error(f"Failed to register G-code commands for {self.name}: {e}")
-
-    def _global_tmc_set_wave_handler(self, gcmd):
-        """Global handler for TMC_SET_WAVE commands that dispatches to correct axis"""
-        cmd_name = gcmd.get_command()
-
-        # Parse command: TMC_SET_WAVE_X200 -> axis=X, factor=200
-        if not cmd_name.startswith("TMC_SET_WAVE_"):
-            gcmd.respond_error("Invalid TMC_SET_WAVE command format")
-            return
-
-        # Extract axis and factor
-        suffix = cmd_name[13:]  # Remove "TMC_SET_WAVE_"
-        if not suffix:
-            gcmd.respond_error("Missing axis in TMC_SET_WAVE command")
-            return
-
-        axis_letter = suffix[0]
-
-        # Find the handler for this axis
-        gcode = self.printer.lookup_object("gcode")
-        if hasattr(gcode, '_tmc_linearity_handlers') and axis_letter in gcode._tmc_linearity_handlers:
-            handler = gcode._tmc_linearity_handlers[axis_letter]
-            handler.cmd_TMC_SET_WAVE(gcmd)
-        else:
-            gcmd.respond_error(f"No TMC2130 linearity correction configured for axis {axis_letter}")
-
-    def _global_tmc_set_step_handler(self, gcmd):
-        """Global handler for TMC_SET_STEP commands that dispatches to correct axis"""
-        cmd_name = gcmd.get_command()
-
-        # Parse command: TMC_SET_STEP_X123 -> axis=X, step=123
-        if not cmd_name.startswith("TMC_SET_STEP_"):
-            gcmd.respond_error("Invalid TMC_SET_STEP command format")
-            return
-
-        # Extract axis and step
-        suffix = cmd_name[13:]  # Remove "TMC_SET_STEP_"
-        if not suffix:
-            gcmd.respond_error("Missing axis in TMC_SET_STEP command")
-            return
-
-        axis_letter = suffix[0]
-
-        # Find the handler for this axis
-        gcode = self.printer.lookup_object("gcode")
-        if hasattr(gcode, '_tmc_linearity_handlers') and axis_letter in gcode._tmc_linearity_handlers:
-            handler = gcode._tmc_linearity_handlers[axis_letter]
-            handler.cmd_TMC_SET_STEP(gcmd)
-        else:
-            gcmd.respond_error(f"No TMC2130 linearity correction configured for axis {axis_letter}")
     
     def _apply_initial_config(self, eventtime):
         """Apply the initial linearity correction configuration"""
@@ -405,98 +347,41 @@ class TMC2130LinearityCorrection:
             logging.error(f"Failed to set TMC2130 field {field_name} for {self.name}: {e}")
             raise
 
-    def cmd_TMC_SET_WAVE(self, gcmd):
-        """Handle Prusa-style TMC_SET_WAVE commands
-
-        Examples:
-        TMC_SET_WAVE_X200  - Set X axis to factor 1.2 (200 = 1000 + 200)
-        TMC_SET_WAVE_E0    - Set extruder to factor 1.0 (no correction)
-        TMC_SET_WAVE_Y100  - Set Y axis to factor 1.1
-        """
-        # Parse the command to extract the factor
-        # Command format: TMC_SET_WAVE_<AXIS><FACTOR>
-        # where FACTOR is added to 1000 (so 200 means 1200, 0 means 1000)
-
-        cmd_name = gcmd.get_command()
-
-        # Extract factor from command name
-        prefix = f"TMC_SET_WAVE_{self.axis_letter}"
-        if not cmd_name.startswith(prefix):
-            gcmd.respond_error(f"Invalid command format. Expected {prefix}<factor>")
-            return
-
-        factor_str = cmd_name[len(prefix):]
-
+    def _cmd_set_wave_with_offset(self, gcmd, factor_offset):
+        """Handle individual TMC_SET_WAVE_X### commands"""
         try:
-            # Parse factor (0-200, added to 1000)
-            factor_offset = int(factor_str)
-            if factor_offset < 0 or factor_offset > 200:
-                raise ValueError("Factor offset out of range")
-
+            # Convert offset to linearity factor (0-200 -> 1000-1200)
             self.linearity_factor = 1000 + factor_offset
 
-            # Validate final factor is within limits
-            if self.linearity_factor < MIN_LINEARITY_FACTOR or self.linearity_factor > MAX_LINEARITY_FACTOR:
-                raise ValueError("Final factor out of range")
-
+            # Apply the new linearity correction
             self._apply_linearity_correction()
 
             gcmd.respond_info(
                 f"TMC2130 linearity factor for {self.name} set to {self.linearity_factor/1000.0:.3f} "
-                f"(factor offset: {factor_offset})"
+                f"(offset: {factor_offset})"
             )
 
-        except ValueError as e:
-            gcmd.respond_error(
-                f"Invalid factor '{factor_str}'. Use 0-200 (0=1.0, 100=1.1, 200=1.2). Error: {e}"
-            )
+        except Exception as e:
+            gcmd.respond_error(f"Failed to set linearity factor: {e}")
 
-    def cmd_TMC_SET_STEP(self, gcmd):
-        """Handle Prusa-style TMC_SET_STEP commands
-
-        Examples:
-        TMC_SET_STEP_X123  - Move X axis to microstep position 123
-        TMC_SET_STEP_E0    - Move extruder to microstep position 0
-        TMC_SET_STEP_Y64   - Move Y axis to microstep position 64
-        """
-        # Parse the command to extract the step position
-        # Command format: TMC_SET_STEP_<AXIS><STEP>
-
-        cmd_name = gcmd.get_command()
-
-        # Extract step from command name
-        prefix = f"TMC_SET_STEP_{self.axis_letter}"
-        if not cmd_name.startswith(prefix):
-            gcmd.respond_error(f"Invalid command format. Expected {prefix}<step>")
-            return
-
-        step_str = cmd_name[len(prefix):]
-
+    def _cmd_set_step_with_position(self, gcmd, target_step):
+        """Handle individual TMC_SET_STEP_X### commands"""
         try:
-            # Parse step position
-            target_step = int(step_str)
-            if target_step < 0 or target_step > 255:
-                raise ValueError("Step position out of range")
-
             # Get current microstep resolution
             microstep_resolution = self._get_microstep_resolution()
 
             # Mask step position to valid range (4 * resolution - 1)
             max_step = 4 * microstep_resolution - 1
-            target_step = target_step & max_step
+            masked_step = target_step & max_step
 
             # Move to target step position (matches Prusa: dir=2, delay_us=1000)
-            self._goto_step(target_step, microstep_resolution, delay_us=1000)
+            self._goto_step(masked_step, microstep_resolution, delay_us=1000)
 
             gcmd.respond_info(
-                f"TMC2130 {self.name} moved to microstep position {target_step} "
-                f"(resolution: {microstep_resolution})"
+                f"TMC2130 {self.name} moved to microstep position {masked_step} "
+                f"(requested: {target_step}, resolution: {microstep_resolution})"
             )
 
-        except ValueError as e:
-            gcmd.respond_error(
-                f"Invalid step '{step_str}'. Use 0-255. Error: {e}"
-            )
         except Exception as e:
             gcmd.respond_error(f"Failed to move to step position: {e}")
 
@@ -517,6 +402,22 @@ class TMC2130LinearityCorrection:
         except Exception as e:
             logging.warning(f"Failed to read microstep resolution for {self.name}: {e}")
             return 256  # Default fallback
+
+    def _get_current_step_position(self):
+        """Get current microstep position from TMC2130 MSCNT register"""
+        try:
+            # Read MSCNT field which contains current microstep position
+            mscnt = self._get_tmc_field('mscnt')
+            if mscnt is None:
+                raise RuntimeError("Could not read MSCNT register")
+
+            # MSCNT is 10-bit value (0-1023), convert to 8-bit step position (0-255)
+            step_position = (mscnt >> 2) & 0xFF
+            return step_position
+
+        except Exception as e:
+            logging.warning(f"Failed to read current step position for {self.name}: {e}")
+            raise
 
     def _get_tmc_register(self, register_name):
         """Get a TMC2130 register value using Klipper's TMC interface"""
