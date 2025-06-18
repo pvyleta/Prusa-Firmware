@@ -251,54 +251,39 @@ class TMC2130LinearityCorrection:
             raise
 
     def _generate_constant_torque_wave(self):
-        """Generate constant torque wave table based on Prusa firmware algorithm
+        """Generate constant torque wave table using exact Prusa firmware algorithm
 
-        The TMC2130's default sine wave creates non-linear torque output because
-        torque is proportional to sin(θ) * cos(θ), not just sin(θ). This causes
-        uneven step sizes and print quality issues.
-
-        The constant torque algorithm compensates by modifying the wave table to
-        maintain consistent torque output across all microstep positions, resulting
-        in more uniform actual step sizes and improved print quality.
+        This implements the exact tmc2130_calc_constant_torque_value algorithm from
+        Prusa firmware to ensure identical wave table generation and prevent
+        stepper stalling/trembling issues.
         """
         wave_table = [0] * 256
 
-        # Convert linearity factor from 1000-based to actual factor
+        # Convert linearity factor from 1000-based to actual factor (matches Prusa)
         factor = self.linearity_factor / 1000.0
 
-        # Phase 1: Generate power-corrected sine curve (positions 0-127)
-        for i in range(128):
-            # Calculate position as continuous value (i + 0.5) to prevent discontinuities
-            position = i + 0.5
-            # Normalize to 0-1 range for first quarter
-            normalized_pos = position / 127.5
-            # Calculate sine value
-            sine_val = math.sin(normalized_pos * math.pi / 2)
-            # Apply power factor correction
-            corrected_val = math.pow(sine_val, factor)
-            # Scale to amplitude and add sin0 offset
-            wave_table[i] = int(corrected_val * AMPLITUDE + SIN0)
+        # Calculate tcorr for constant torque algorithm (matches Prusa exactly)
+        MIDPOINT_VALUE = 175.362481734263781  # sqrt((AMP² + SIN0²) / 2)
+        SIN_127_5 = 0.704934080375905  # sin(M_PI * 127.5f / 512.0f)
+        tcorr = MIDPOINT_VALUE / ((AMPLITUDE - SIN0) * pow(SIN_127_5, factor))
 
-        # Phase 2: Calculate remaining values using constant torque constraint
-        # |A|² + |B|² = constant, where A and B are the two phases
-        for i in range(128, 256):
-            # For constant torque: B² = constant - A²
-            # We use the midpoint value as our constant
-            midpoint_val = wave_table[127]
-            constant_torque = midpoint_val * midpoint_val * 2  # |A|² + |B|² at midpoint
+        # Target magnitude squared for constant torque constraint
+        TARGET_MAGNITUDE_SQUARED = AMPLITUDE * AMPLITUDE + SIN0 * SIN0
 
-            # Calculate corresponding A phase value (mirror around midpoint)
-            a_index = 255 - i
-            a_val = wave_table[a_index] if a_index < 128 else wave_table[255 - a_index]
-
-            # Calculate B phase value to maintain constant torque
-            b_squared = constant_torque - (a_val * a_val)
-            if b_squared >= 0:
-                b_val = int(math.sqrt(b_squared))
-                wave_table[i] = min(max(b_val, 0), 255)  # Clamp to valid range
+        # Generate wave table using Prusa's exact algorithm
+        for i in range(256):
+            if i < 128:
+                # Phase 1: Power-corrected sine curve (matches Prusa exactly)
+                sin_val = math.sin(math.pi * i / 512.0)  # Prusa's exact formula
+                theoretical_value = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
+                wave_table[i] = int(theoretical_value + 0.5)
             else:
-                # Fallback to linear interpolation if constraint cannot be met
-                wave_table[i] = max(0, AMPLITUDE - wave_table[i - 128])
+                # Phase 2: Constant torque constraint (matches Prusa exactly)
+                mirror_i = 255 - i
+                sin_val = math.sin(math.pi * mirror_i / 512.0)
+                mirror_theoretical = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
+                theoretical_value = math.sqrt(TARGET_MAGNITUDE_SQUARED - mirror_theoretical * mirror_theoretical)
+                wave_table[i] = int(theoretical_value + 0.5)
 
         return wave_table
 
@@ -307,9 +292,18 @@ class TMC2130LinearityCorrection:
         if not self.tmc_object:
             raise RuntimeError("TMC2130 driver object not available")
 
-        # Set MSLUTSTART register using proper field names
-        self._set_tmc_field('start_sin', SIN0 & 0xFF)
-        self._set_tmc_field('start_sin90', SIN0 & 0xFF)
+        logging.info(f"TMC2130 {self.name}: Writing wave table with {len(wave_table)} values")
+
+        # Log first few wave table values for debugging
+        sample_values = [wave_table[i] for i in [0, 32, 64, 96, 127, 128, 160, 192, 224, 255]]
+        logging.info(f"TMC2130 {self.name}: Sample wave values: {sample_values}")
+
+        # Set MSLUTSTART register using proper field names (matches Prusa: SIN0, AMP for constant torque)
+        start_sin_val = SIN0 & 0xFF
+        start_sin90_val = AMPLITUDE & 0xFF
+        self._set_tmc_field('start_sin', start_sin_val)
+        self._set_tmc_field('start_sin90', start_sin90_val)
+        logging.info(f"TMC2130 {self.name}: MSLUTSTART start_sin={start_sin_val}, start_sin90={start_sin90_val}")
 
         # Write wave table to MSLUT0-MSLUT7 registers using proper field names
         # Each register holds 32 values (4 bits each)
@@ -328,16 +322,22 @@ class TMC2130LinearityCorrection:
             # Write to MSLUT register using lowercase field name
             field_name = f'mslut{reg_idx}'
             self._set_tmc_field(field_name, reg_value)
+            logging.info(f"TMC2130 {self.name}: {field_name}=0x{reg_value:08x}")
 
         # Set MSLUTSEL register fields individually
         # Use default values that work well with constant torque algorithm
-        self._set_tmc_field('w0', 1)
-        self._set_tmc_field('w1', 1)
-        self._set_tmc_field('w2', 1)
-        self._set_tmc_field('w3', 1)
-        self._set_tmc_field('x1', 128)
-        self._set_tmc_field('x2', 255)
-        self._set_tmc_field('x3', 255)
+        w_values = [1, 1, 1, 1]
+        x_values = [128, 255, 255]
+
+        for i, w_val in enumerate(w_values):
+            self._set_tmc_field(f'w{i}', w_val)
+            logging.info(f"TMC2130 {self.name}: w{i}={w_val}")
+
+        for i, x_val in enumerate(x_values, 1):
+            self._set_tmc_field(f'x{i}', x_val)
+            logging.info(f"TMC2130 {self.name}: x{i}={x_val}")
+
+        logging.info(f"TMC2130 {self.name}: Wave table writing completed")
 
     def _set_tmc_field(self, field_name, value):
         """Set a TMC2130 register field using Klipper's TMC interface"""
