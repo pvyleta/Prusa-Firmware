@@ -75,27 +75,11 @@ class TMC2130LinearityCorrection:
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
 
-        # Register Prusa-style G-code commands
-        gcode = self.printer.lookup_object("gcode")
+        # Store axis letter for command handling
+        self.axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
 
-        # Get axis letter for Prusa-style commands
-        axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
-
-        # Register TMC_SET_WAVE command with axis-specific pattern
-        # This will handle commands like TMC_SET_WAVE_X200, TMC_SET_WAVE_E0, etc.
-        gcode.register_command(
-            f"TMC_SET_WAVE_{axis_letter}",
-            self.cmd_TMC_SET_WAVE,
-            desc=f"Set TMC2130 linearity correction for {self.name}"
-        )
-
-        # Register TMC_SET_STEP command with axis-specific pattern
-        # This will handle commands like TMC_SET_STEP_X123, TMC_SET_STEP_E0, etc.
-        gcode.register_command(
-            f"TMC_SET_STEP_{axis_letter}",
-            self.cmd_TMC_SET_STEP,
-            desc=f"Move TMC2130 to specific microstep position for {self.name}"
-        )
+        # Register Prusa-style G-code commands in handle_ready to ensure proper initialization
+        # Commands will be registered when Klipper is fully ready
     
     def handle_connect(self):
         """Called when Klipper connects to MCU"""
@@ -197,8 +181,84 @@ class TMC2130LinearityCorrection:
 
     def handle_ready(self):
         """Called when Klipper is ready"""
+        # Register G-code commands now that Klipper is fully initialized
+        self._register_gcode_commands()
+
         # Apply initial configuration
         self.printer.reactor.register_callback(self._apply_initial_config)
+
+    def _register_gcode_commands(self):
+        """Register Prusa-style G-code commands"""
+        try:
+            # Get the global command dispatcher
+            gcode = self.printer.lookup_object("gcode")
+
+            # Store reference to gcode for command registration
+            if not hasattr(gcode, '_tmc_linearity_handlers'):
+                gcode._tmc_linearity_handlers = {}
+                # Register a global command handler that will dispatch to individual instances
+                gcode.register_command("TMC_SET_WAVE", self._global_tmc_set_wave_handler,
+                                     desc="Set TMC2130 linearity correction")
+                gcode.register_command("TMC_SET_STEP", self._global_tmc_set_step_handler,
+                                     desc="Move TMC2130 to specific microstep position")
+
+            # Register this instance's handlers
+            gcode._tmc_linearity_handlers[self.axis_letter] = self
+
+            logging.info(f"Registered TMC2130 linearity correction for axis {self.axis_letter} ({self.name})")
+
+        except Exception as e:
+            logging.error(f"Failed to register G-code commands for {self.name}: {e}")
+
+    def _global_tmc_set_wave_handler(self, gcmd):
+        """Global handler for TMC_SET_WAVE commands that dispatches to correct axis"""
+        cmd_name = gcmd.get_command()
+
+        # Parse command: TMC_SET_WAVE_X200 -> axis=X, factor=200
+        if not cmd_name.startswith("TMC_SET_WAVE_"):
+            gcmd.respond_error("Invalid TMC_SET_WAVE command format")
+            return
+
+        # Extract axis and factor
+        suffix = cmd_name[13:]  # Remove "TMC_SET_WAVE_"
+        if not suffix:
+            gcmd.respond_error("Missing axis in TMC_SET_WAVE command")
+            return
+
+        axis_letter = suffix[0]
+
+        # Find the handler for this axis
+        gcode = self.printer.lookup_object("gcode")
+        if hasattr(gcode, '_tmc_linearity_handlers') and axis_letter in gcode._tmc_linearity_handlers:
+            handler = gcode._tmc_linearity_handlers[axis_letter]
+            handler.cmd_TMC_SET_WAVE(gcmd)
+        else:
+            gcmd.respond_error(f"No TMC2130 linearity correction configured for axis {axis_letter}")
+
+    def _global_tmc_set_step_handler(self, gcmd):
+        """Global handler for TMC_SET_STEP commands that dispatches to correct axis"""
+        cmd_name = gcmd.get_command()
+
+        # Parse command: TMC_SET_STEP_X123 -> axis=X, step=123
+        if not cmd_name.startswith("TMC_SET_STEP_"):
+            gcmd.respond_error("Invalid TMC_SET_STEP command format")
+            return
+
+        # Extract axis and step
+        suffix = cmd_name[13:]  # Remove "TMC_SET_STEP_"
+        if not suffix:
+            gcmd.respond_error("Missing axis in TMC_SET_STEP command")
+            return
+
+        axis_letter = suffix[0]
+
+        # Find the handler for this axis
+        gcode = self.printer.lookup_object("gcode")
+        if hasattr(gcode, '_tmc_linearity_handlers') and axis_letter in gcode._tmc_linearity_handlers:
+            handler = gcode._tmc_linearity_handlers[axis_letter]
+            handler.cmd_TMC_SET_STEP(gcmd)
+        else:
+            gcmd.respond_error(f"No TMC2130 linearity correction configured for axis {axis_letter}")
     
     def _apply_initial_config(self, eventtime):
         """Apply the initial linearity correction configuration"""
@@ -358,10 +418,9 @@ class TMC2130LinearityCorrection:
         # where FACTOR is added to 1000 (so 200 means 1200, 0 means 1000)
 
         cmd_name = gcmd.get_command()
-        axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
 
         # Extract factor from command name
-        prefix = f"TMC_SET_WAVE_{axis_letter}"
+        prefix = f"TMC_SET_WAVE_{self.axis_letter}"
         if not cmd_name.startswith(prefix):
             gcmd.respond_error(f"Invalid command format. Expected {prefix}<factor>")
             return
@@ -404,10 +463,9 @@ class TMC2130LinearityCorrection:
         # Command format: TMC_SET_STEP_<AXIS><STEP>
 
         cmd_name = gcmd.get_command()
-        axis_letter = AXIS_MAPPING.get(self.name, self.name.upper())
 
         # Extract step from command name
-        prefix = f"TMC_SET_STEP_{axis_letter}"
+        prefix = f"TMC_SET_STEP_{self.axis_letter}"
         if not cmd_name.startswith(prefix):
             gcmd.respond_error(f"Invalid command format. Expected {prefix}<step>")
             return
