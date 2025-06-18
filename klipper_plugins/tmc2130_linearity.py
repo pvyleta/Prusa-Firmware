@@ -307,10 +307,11 @@ class TMC2130LinearityCorrection:
         if not self.tmc_object:
             raise RuntimeError("TMC2130 driver object not available")
 
-        # Set MSLUTSTART register (start values)
-        self._set_tmc_field('MSLUTSTART', (SIN0 & 0xFF) | ((SIN0 & 0xFF) << 16))
+        # Set MSLUTSTART register using proper field names
+        self._set_tmc_field('start_sin', SIN0 & 0xFF)
+        self._set_tmc_field('start_sin90', SIN0 & 0xFF)
 
-        # Write wave table to MSLUT0-MSLUT7 registers
+        # Write wave table to MSLUT0-MSLUT7 registers using proper field names
         # Each register holds 32 values (4 bits each)
         for reg_idx in range(8):
             reg_value = 0
@@ -324,22 +325,19 @@ class TMC2130LinearityCorrection:
                         wave_4bit = (wave_table[table_idx] >> 4) & 0xF
                         reg_value |= (wave_4bit << (nibble_pos * 4))
 
-            # Write to MSLUT register
-            register_name = f'MSLUT{reg_idx}'
-            self._set_tmc_field(register_name, reg_value)
+            # Write to MSLUT register using lowercase field name
+            field_name = f'mslut{reg_idx}'
+            self._set_tmc_field(field_name, reg_value)
 
-        # Set MSLUTSEL register for segment selection
+        # Set MSLUTSEL register fields individually
         # Use default values that work well with constant torque algorithm
-        mslutsel_value = (
-            (1 << 0) |   # W0=1
-            (1 << 2) |   # W1=1
-            (1 << 4) |   # W2=1
-            (1 << 6) |   # W3=1
-            (128 << 8) | # X1=128
-            (255 << 16)| # X2=255
-            (255 << 24)  # X3=255
-        )
-        self._set_tmc_field('MSLUTSEL', mslutsel_value)
+        self._set_tmc_field('w0', 1)
+        self._set_tmc_field('w1', 1)
+        self._set_tmc_field('w2', 1)
+        self._set_tmc_field('w3', 1)
+        self._set_tmc_field('x1', 128)
+        self._set_tmc_field('x2', 255)
+        self._set_tmc_field('x3', 255)
 
     def _set_tmc_field(self, field_name, value):
         """Set a TMC2130 register field using Klipper's TMC interface"""
