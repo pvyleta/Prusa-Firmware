@@ -171,24 +171,36 @@ class TMC2130LinearityCorrection:
     def _get_stepper_config(self):
         """Get stepper configuration from Klipper config"""
         try:
-            # Try to find stepper configuration by name
+            # Get the config file object
             config_file = self.printer.lookup_object('configfile')
 
+            # Access the config sections through the proper API
+            if hasattr(config_file, 'get_status'):
+                # Try to get config status which contains sections
+                status = config_file.get_status()
+                if 'settings' in status:
+                    sections = status['settings']
+                else:
+                    logging.warning(f"No settings found in config status for {self.name}")
+                    return None
+            else:
+                logging.warning(f"Config file object has no get_status method for {self.name}")
+                return None
+
             # Look for stepper section matching our name
-            stepper_section_name = f"stepper_{self.name.lower()}"
-            if stepper_section_name in config_file.sections:
-                return config_file.sections[stepper_section_name]
+            stepper_section_name = self.name
+            if stepper_section_name in sections:
+                return sections[stepper_section_name]
 
             # Try alternative naming patterns
             alt_names = [
                 f"stepper_{self.name}",
-                self.name,
                 f"stepper {self.name}",
             ]
 
             for alt_name in alt_names:
-                if alt_name in config_file.sections:
-                    return config_file.sections[alt_name]
+                if alt_name in sections:
+                    return sections[alt_name]
 
             logging.warning(f"No stepper config section found for {self.name}")
             return None
@@ -535,18 +547,55 @@ class TMC2130LinearityCorrection:
                 f"target_step={target_step}, steps_to_move={cnt}, direction={dir}, shift={shift}"
             )
 
-            # Perform actual stepper movement if pins are available
-            if self.step_pin and self.dir_pin:
-                self._do_steps_with_verification(cnt, dir, target_step, shift, delay_us)
-            else:
-                logging.info(
-                    f"TMC2130 {self.name}: Would move {cnt} steps "
-                    f"(dir={dir}) to reach position {target_step}"
-                )
-                logging.warning(f"Step/dir pins not detected for {self.name} - movement not performed")
+            # Perform actual stepper movement using Klipper's force_move system
+            try:
+                self._perform_force_move_steps(cnt, dir, microstep_resolution)
+                logging.info(f"TMC2130 {self.name}: Successfully moved {cnt} steps (dir={dir})")
+            except Exception as e:
+                logging.error(f"TMC2130 {self.name}: Failed to perform movement: {e}")
+                raise
 
         except Exception as e:
             logging.error(f"Failed to move TMC2130 {self.name} to step {target_step}: {e}")
+            raise
+
+    def _perform_force_move_steps(self, steps, direction, microstep_resolution):
+        """Perform stepper movement using Klipper's force_move system"""
+        try:
+            # Get the stepper object
+            if not self.stepper_object:
+                raise RuntimeError(f"Stepper object not available for {self.name}")
+
+            # Calculate distance in mm
+            # Each microstep is 1/microstep_resolution of a full step
+            step_dist = self.stepper_object.get_step_dist()
+            microstep_dist = step_dist / microstep_resolution
+
+            # Apply direction (negative distance for reverse direction)
+            distance_mm = steps * microstep_dist
+            if direction == 0:  # Reverse direction
+                distance_mm = -distance_mm
+
+            logging.info(
+                f"TMC2130 {self.name}: Moving {distance_mm:.6f}mm "
+                f"({steps} microsteps, direction={direction}, step_dist={step_dist:.6f}mm)"
+            )
+
+            # Get force_move object
+            force_move = self.printer.lookup_object('force_move')
+
+            # Perform the movement at slow speed for precision
+            speed = 1.0  # mm/s - slow for precision
+            force_move.manual_move(self.stepper_object, distance_mm, speed)
+
+            # Wait for movement to complete
+            toolhead = self.printer.lookup_object('toolhead')
+            toolhead.wait_moves()
+
+            logging.info(f"TMC2130 {self.name}: Force move completed successfully")
+
+        except Exception as e:
+            logging.error(f"Failed to perform force move for {self.name}: {e}")
             raise
 
     def _get_axis_inversion(self):
