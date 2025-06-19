@@ -1,0 +1,28 @@
+print("🔍 CRITICAL DISCOVERY: Prusa uses DELTA COMPRESSION!")
+print("=" * 60)
+
+print("❌ OUR CURRENT APPROACH (WRONG):")
+print("   - Pack 8-bit wave values as 4-bit nibbles")
+print("   - Direct value encoding: wave_4bit = (value >> 4) & 0xF")
+print("   - Nibble packing: reg |= (wave_4bit << (nibble_pos * 4))")
+print()
+
+print("✅ PRUSA'S ACTUAL APPROACH:")
+print("   - Calculate DELTAS between consecutive values")
+print("   - Encode deltas as bits: b = (delta + 1) / 2")
+print("   - Bit shifting: if (b == 1) reg |= 0x80000000; reg >>= 1")
+print("   - Creates compressed bit stream, not direct values")
+print()
+
+print("📋 PRUSA ALGORITHM FROM tmc2130_set_wave():")
+print("   Line 1205: dA = vA - va; // calculate delta")
+print("   Line 1220: b = (dA + 1) / 2; // encode delta as bit")
+print("   Line 1242: if (b == 1) reg |= 0x80000000;")
+print("   Line 1246: reg >>= 1;")
+print("   Line 1244: tmc2130_wr_MSLUT(axis, (uint8_t)(i >> 5), reg);")
+print()
+
+print("🚨 THIS EXPLAINS THE STEPPER STALLING!")
+print("   Our registers contain wrong bit patterns")
+print("   TMC2130 expects compressed delta stream")
+print("   We're sending direct 4-bit values instead")

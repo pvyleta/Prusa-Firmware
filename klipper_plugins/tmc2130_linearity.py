@@ -288,56 +288,90 @@ class TMC2130LinearityCorrection:
         return wave_table
 
     def _write_wave_table(self, wave_table):
-        """Write the wave table to TMC2130 MSLUT registers"""
+        """Write the wave table to TMC2130 MSLUT registers using Prusa's exact compression algorithm"""
         if not self.tmc_object:
             raise RuntimeError("TMC2130 driver object not available")
 
-        logging.info(f"TMC2130 {self.name}: Writing wave table with {len(wave_table)} values")
+        logging.info(f"TMC2130 {self.name}: Writing wave table with Prusa's compression algorithm")
 
         # Log first few wave table values for debugging
         sample_values = [wave_table[i] for i in [0, 32, 64, 96, 127, 128, 160, 192, 224, 255]]
         logging.info(f"TMC2130 {self.name}: Sample wave values: {sample_values}")
 
-        # Set MSLUTSTART register using proper field names (matches Prusa: SIN0, AMP for constant torque)
+        # Set MSLUTSTART register (matches Prusa: SIN0, AMP for constant torque)
         start_sin_val = SIN0 & 0xFF
         start_sin90_val = AMPLITUDE & 0xFF
         self._set_tmc_field('start_sin', start_sin_val)
         self._set_tmc_field('start_sin90', start_sin90_val)
         logging.info(f"TMC2130 {self.name}: MSLUTSTART start_sin={start_sin_val}, start_sin90={start_sin90_val}")
 
-        # Write wave table to MSLUT0-MSLUT7 registers using proper field names
-        # Each register holds 32 values (4 bits each)
-        for reg_idx in range(8):
-            reg_value = 0
-            for i in range(32):
-                table_idx = reg_idx * 32 + i
-                if table_idx < len(wave_table):
-                    # Each wave value is 4 bits, pack 8 values per 32-bit register
-                    nibble_pos = i % 8
-                    if nibble_pos < 8:
-                        # Scale 8-bit wave value to 4-bit for register
-                        wave_4bit = (wave_table[table_idx] >> 4) & 0xF
-                        reg_value |= (wave_4bit << (nibble_pos * 4))
+        # Prusa's compression algorithm - exact replication
+        va = 0  # previous vA
+        d0 = 0  # delta0
+        d1 = 1  # delta1
+        w = [1, 1, 1, 1]  # W bits (MSLUTSEL)
+        x = [255, 255, 255]  # X segment bounds (MSLUTSEL)
+        s = 0  # current segment
 
-            # Write to MSLUT register using lowercase field name
-            field_name = f'mslut{reg_idx}'
-            self._set_tmc_field(field_name, reg_value)
-            logging.info(f"TMC2130 {self.name}: {field_name}=0x{reg_value:08x}")
+        # Process all 256 wave values using Prusa's compression
+        for i in range(256):
+            if (i & 0x1f) == 0:  # Every 32 values, start new register
+                reg = 0
 
-        # Set MSLUTSEL register fields individually
-        # Use default values that work well with constant torque algorithm
-        w_values = [1, 1, 1, 1]
-        x_values = [128, 255, 255]
+            vA = wave_table[i]
+            dA = vA - va  # calculate delta (line 1205 in Prusa)
+            va = vA
 
-        for i, w_val in enumerate(w_values):
-            self._set_tmc_field(f'w{i}', w_val)
-            logging.info(f"TMC2130 {self.name}: w{i}={w_val}")
+            b = -1
+            if dA == d0:
+                b = 0  # delta == delta0 => bit=0
+            elif dA == d1:
+                b = 1  # delta == delta1 => bit=1
+            else:
+                # Adaptive delta encoding (Prusa's optimization)
+                if s < 3:
+                    if dA < d0:
+                        d1 = d0
+                        d0 = dA
+                        b = 0
+                    elif dA > d1:
+                        d0 = d1
+                        d1 = dA
+                        b = 1
+                    else:
+                        b = (dA + 1) // 2  # Fallback encoding
 
-        for i, x_val in enumerate(x_values, 1):
-            self._set_tmc_field(f'x{i}', x_val)
-            logging.info(f"TMC2130 {self.name}: x{i}={x_val}")
+                    # Update segment bounds and weights
+                    if b >= 0:
+                        w[s] = b
+                        if s < 2:
+                            x[s] = i
+                        s += 1
+                else:
+                    b = (dA + 1) // 2  # Standard encoding for later segments
 
-        logging.info(f"TMC2130 {self.name}: Wave table writing completed")
+            # Prusa's bit encoding (lines 1242-1246)
+            if b == 1:
+                reg |= 0x80000000
+
+            if (i & 31) == 31:  # Every 32nd value, write register
+                field_name = f'mslut{i >> 5}'
+                self._set_tmc_field(field_name, reg)
+                logging.info(f"TMC2130 {self.name}: {field_name}=0x{reg:08x}")
+            else:
+                reg >>= 1
+
+        # Set MSLUTSEL register with computed values (line 1249)
+        self._set_tmc_field('w0', w[0])
+        self._set_tmc_field('w1', w[1])
+        self._set_tmc_field('w2', w[2])
+        self._set_tmc_field('w3', w[3])
+        self._set_tmc_field('x1', x[0])
+        self._set_tmc_field('x2', x[1])
+        self._set_tmc_field('x3', x[2])
+
+        logging.info(f"TMC2130 {self.name}: MSLUTSEL w=[{w[0]},{w[1]},{w[2]},{w[3]}] x=[{x[0]},{x[1]},{x[2]}]")
+        logging.info(f"TMC2130 {self.name}: Prusa compression algorithm completed")
 
     def _set_tmc_field(self, field_name, value):
         """Set a TMC2130 register field using Klipper's TMC interface"""
