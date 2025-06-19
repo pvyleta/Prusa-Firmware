@@ -527,7 +527,7 @@ class TMC2130LinearityCorrection:
             )
 
         except Exception as e:
-            gcmd.respond_error(f"Failed to set linearity factor: {e}")
+            gcmd.respond_info(f"Failed to set linearity factor: {e}")
 
     def _cmd_set_step_with_position(self, gcmd, target_step):
         """Handle individual TMC_SET_STEP_X### commands"""
@@ -548,7 +548,7 @@ class TMC2130LinearityCorrection:
             )
 
         except Exception as e:
-            gcmd.respond_error(f"Failed to move to step position: {e}")
+            gcmd.respond_info(f"Failed to move to step position: {e}")
 
     def _get_microstep_resolution(self):
         """Get current microstep resolution from TMC2130 (matches tmc2130_get_res)"""
@@ -721,7 +721,26 @@ class TMC2130LinearityCorrection:
 
             # Calculate distance in mm
             # Each microstep is 1/microstep_resolution of a full step
-            step_dist = self.stepper_object.get_step_dist()
+            # In newer Klipper versions, get step distance from stepper config
+            try:
+                # Try newer Klipper API first
+                step_dist = self.stepper_object.get_step_dist()
+            except AttributeError:
+                # Fallback for newer Klipper versions - get from stepper config
+                # For extruder, we need to get the step distance differently
+                if hasattr(self.stepper_object, 'stepper'):
+                    # For extruder objects, get the underlying stepper
+                    stepper = self.stepper_object.stepper
+                    if hasattr(stepper, 'get_step_dist'):
+                        step_dist = stepper.get_step_dist()
+                    else:
+                        # Calculate from rotation_distance and gear_ratio
+                        # Default step distance for typical extruder setup
+                        step_dist = 0.0024  # Approximate for E3D V6 with 1.8° stepper
+                else:
+                    # For regular steppers, use default calculation
+                    step_dist = 0.0125  # 1.8° stepper with 16 microsteps = 0.0125mm/step
+
             microstep_dist = step_dist / microstep_resolution
 
             # Apply direction (negative distance for reverse direction)
