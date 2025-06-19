@@ -259,8 +259,13 @@ class TMC2130LinearityCorrection:
         """
         wave_table = [0] * 256
 
-        # Convert linearity factor from 1000-based to actual factor (matches Prusa)
-        factor = self.linearity_factor / 1000.0
+        # Convert linearity factor using exact Prusa formula (line 1156)
+        # if (fac1000) fac = ((float)((uint16_t)fac1000 + 1000) / 1000);
+        fac1000 = self.linearity_factor
+        if fac1000:
+            factor = (fac1000 + 1000) / 1000.0
+        else:
+            factor = 1.0
 
         # Calculate tcorr for constant torque algorithm (matches Prusa exactly)
         MIDPOINT_VALUE = 175.362481734263781  # sqrt((AMP² + SIN0²) / 2)
@@ -270,20 +275,44 @@ class TMC2130LinearityCorrection:
         # Target magnitude squared for constant torque constraint
         TARGET_MAGNITUDE_SQUARED = AMPLITUDE * AMPLITUDE + SIN0 * SIN0
 
-        # Generate wave table using Prusa's exact algorithm
+        # Initialize state variables for Prusa's algorithm
+        va = 0  # previous value
+        carry = 0.0  # carry for rounding
+        prev_theoretical_value = 0.0
+
+        # Generate wave table using Prusa's exact tmc2130_calc_constant_torque_value
         for i in range(256):
             if i < 128:
-                # Phase 1: Power-corrected sine curve (matches Prusa exactly)
-                sin_val = math.sin(math.pi * i / 512.0)  # Prusa's exact formula
+                # Phase 1: Power-corrected sine curve (exact Prusa formula)
+                sin_val = math.sin(math.pi * i / 512.0)  # sin(M_PI * i / 512.0f)
                 theoretical_value = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
-                wave_table[i] = int(theoretical_value + 0.5)
+
+                # Apply carry and rounding (Prusa's exact method)
+                theoretical_value += carry
+                vA = int(theoretical_value + 0.5)
+                carry = theoretical_value - vA
+
+                # Clamp to valid range
+                vA = max(0, min(255, vA))
+                wave_table[i] = vA
+
             else:
-                # Phase 2: Constant torque constraint (matches Prusa exactly)
+                # Phase 2: Constant torque constraint (exact Prusa formula)
                 mirror_i = 255 - i
                 sin_val = math.sin(math.pi * mirror_i / 512.0)
                 mirror_theoretical = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
                 theoretical_value = math.sqrt(TARGET_MAGNITUDE_SQUARED - mirror_theoretical * mirror_theoretical)
-                wave_table[i] = int(theoretical_value + 0.5)
+
+                # Apply carry and rounding (Prusa's exact method)
+                theoretical_value += carry
+                vA = int(theoretical_value + 0.5)
+                carry = theoretical_value - vA
+
+                # Clamp to valid range
+                vA = max(0, min(255, vA))
+                wave_table[i] = vA
+
+            va = vA  # Update previous value
 
         return wave_table
 
