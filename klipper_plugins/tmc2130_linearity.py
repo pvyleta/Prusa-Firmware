@@ -250,147 +250,238 @@ class TMC2130LinearityCorrection:
             logging.error(f"Failed to write TMC2130 registers for {self.name}: {e}")
             raise
 
-    def _generate_constant_torque_wave(self):
-        """Generate constant torque wave table using exact Prusa firmware algorithm
-
-        This implements the exact tmc2130_calc_constant_torque_value algorithm from
-        Prusa firmware to ensure identical wave table generation and prevent
-        stepper stalling/trembling issues.
+    def _tmc2130_calc_constant_torque_value(self, i, va, fac, tcorr, carry, prev_theoretical_value):
         """
-        wave_table = [0] * 256
+        Exact replication of Prusa's tmc2130_calc_constant_torque_value function
+        Lines 1065-1140 in tmc2130.cpp
+        """
+        # Constants (lines 1067-1069)
+        SIN0 = 0
+        AMP = 248  # Amplitude limit as per AN-026 recommendation
+        TARGET_MAGNITUDE_SQUARED = float(AMP * AMP + SIN0 * SIN0)
 
-        # Convert linearity factor using exact Prusa formula (line 1156)
-        # if (fac1000) fac = ((float)((uint16_t)fac1000 + 1000) / 1000);
+        # Theoretical constant torque value at microstep position i (line 1072)
+        if i < 128:
+            # Phase 1 (positions 0-127): Power-corrected sine curve (lines 1074-1079)
+            # Calculate theoretical value using sine function with power factor
+            # correction and tcorr adjustment for midpoint matching
+            sin_val = math.sin(math.pi * float(i) / 512.0)
+            theoretical_value = (AMP - SIN0) * pow(sin_val, fac) * tcorr + SIN0
+        else:
+            # Phase 2 (positions 128-255): Constant torque constraint solving (lines 1080-1093)
+            # For constant torque: |A(i)|² + |B(i)|² = TARGET_MAGNITUDE_SQUARED
+            # Since B(i) = A(255-i), solve: |A(i)|² + |A(255-i)|² = TARGET_MAGNITUDE_SQUARED
+            # Therefore: A(i) = sqrt(TARGET_MAGNITUDE_SQUARED - A(255-i)²)
+
+            # Calculate mirror position value from Phase 1 curve (lines 1087-1089)
+            mirror_i = 255 - i
+            sin_val = math.sin(math.pi * float(mirror_i) / 512.0)
+            mirror_theoretical = (AMP - SIN0) * pow(sin_val, fac) * tcorr + SIN0
+
+            # Apply constant torque constraint (lines 1091-1092)
+            theoretical_value = math.sqrt(TARGET_MAGNITUDE_SQUARED - mirror_theoretical * mirror_theoretical)
+
+        # Step 1: Apply carry mechanism and initial quantization (lines 1095-1098)
+        # Carry compensates for accumulated rounding errors from previous steps
+        adjusted_theoretical = theoretical_value - carry[0]
+        candidate_value = int(adjusted_theoretical + 0.5)
+
+        # Step 2: Slope-based delta limiting for TMC2130 compression (lines 1100-1123)
+        # Calculate slope between current and previous theoretical values (line 1102)
+        slope = theoretical_value - prev_theoretical_value[0]
+
+        # Determine allowed delta range (lines 1104-1107)
+        # This ensures delta ranges match slope ranges for optimal compression:
+        # slope ∈ [0,1) → deltas ∈ [0,1], slope ∈ [1,2) → deltas ∈ [1,2], etc.
+        min_delta = int(math.floor(slope))
+
+        # Clamp to TMC2130 hardware delta limits [-1, 3] (lines 1109-1115)
+        # Max delta is 2 because we need range [min_delta, min_delta+1]
+        if min_delta < -1:
+            min_delta = -1
+        elif min_delta > 2:
+            min_delta = 2
+
+        # Enforce delta limits: constrain actual delta to [min_delta, min_delta+1] (lines 1117-1123)
+        delta = candidate_value - va
+        if delta < min_delta:
+            candidate_value = va + min_delta
+        elif delta > min_delta + 1:
+            candidate_value = va + min_delta + 1
+
+        # Step 3: Final amplitude clamping to valid TMC2130 range (lines 1125-1130)
+        if candidate_value < SIN0:
+            candidate_value = SIN0
+        elif candidate_value > AMP:
+            candidate_value = AMP
+
+        # Step 4: Update carry for next iteration (lines 1132-1137)
+        # Carry = quantization_error = actual_output - theoretical_target
+        carry[0] = candidate_value - theoretical_value
+
+        # Update previous theoretical value for next slope calculation
+        prev_theoretical_value[0] = theoretical_value
+
+        return candidate_value
+
+    def _generate_constant_torque_wave(self):
+        """
+        Exact replication of Prusa's constant torque wave generation
+        From tmc2130_set_wave function lines 1148-1250
+        """
+        # Exact Prusa factor calculation (lines 1155-1156)
         fac1000 = self.linearity_factor
         if fac1000:
-            factor = (fac1000 + 1000) / 1000.0
+            fac = float((fac1000 + 1000)) / 1000.0  # correction factor
         else:
-            factor = 1.0
+            fac = 1.0
 
-        # Calculate tcorr for constant torque algorithm (matches Prusa exactly)
+        # Constant torque algorithm parameters (lines 1170-1173)
+        carry = [0.0]  # Carry value to handle rounding adjustments (use list for reference)
+        prev_theoretical_value = [0.0]  # Cache previous theoretical value for slope calculation
+        tcorr = 1.0  # Pre-calculated correction factor for constant torque algorithm
+
+        # Pre-calculate tcorr for constant torque algorithm (lines 1179-1185)
+        SIN0 = 0
+        AMP = 248  # Amplitude limit as per AD recommendation
         MIDPOINT_VALUE = 175.362481734263781  # sqrt((AMP² + SIN0²) / 2)
         SIN_127_5 = 0.704934080375905  # sin(M_PI * 127.5f / 512.0f)
-        tcorr = MIDPOINT_VALUE / ((AMPLITUDE - SIN0) * pow(SIN_127_5, factor))
 
-        # Target magnitude squared for constant torque constraint
-        TARGET_MAGNITUDE_SQUARED = AMPLITUDE * AMPLITUDE + SIN0 * SIN0
+        tcorr = (MIDPOINT_VALUE - SIN0) / ((AMP - SIN0) * pow(SIN_127_5, fac))
 
-        # Initialize state variables for Prusa's algorithm
-        va = 0  # previous value
-        carry = 0.0  # carry for rounding
-        prev_theoretical_value = 0.0
+        # Generate wave table using exact Prusa algorithm
+        wave_table = []
+        va = 0  # previous vA (line 1159)
 
-        # Generate wave table using Prusa's exact tmc2130_calc_constant_torque_value
         for i in range(256):
-            if i < 128:
-                # Phase 1: Power-corrected sine curve (exact Prusa formula)
-                sin_val = math.sin(math.pi * i / 512.0)  # sin(M_PI * i / 512.0f)
-                theoretical_value = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
-
-                # Apply carry and rounding (Prusa's exact method)
-                theoretical_value += carry
-                vA = int(theoretical_value + 0.5)
-                carry = theoretical_value - vA
-
-                # Clamp to valid range
-                vA = max(0, min(255, vA))
-                wave_table[i] = vA
-
-            else:
-                # Phase 2: Constant torque constraint (exact Prusa formula)
-                mirror_i = 255 - i
-                sin_val = math.sin(math.pi * mirror_i / 512.0)
-                mirror_theoretical = (AMPLITUDE - SIN0) * pow(sin_val, factor) * tcorr + SIN0
-                theoretical_value = math.sqrt(TARGET_MAGNITUDE_SQUARED - mirror_theoretical * mirror_theoretical)
-
-                # Apply carry and rounding (Prusa's exact method)
-                theoretical_value += carry
-                vA = int(theoretical_value + 0.5)
-                carry = theoretical_value - vA
-
-                # Clamp to valid range
-                vA = max(0, min(255, vA))
-                wave_table[i] = vA
-
+            # Call exact Prusa constant torque calculation (line 1196)
+            vA = self._tmc2130_calc_constant_torque_value(i, va, fac, tcorr, carry, prev_theoretical_value)
+            wave_table.append(vA)
             va = vA  # Update previous value
 
         return wave_table
 
     def _write_wave_table(self, wave_table):
-        """Write the wave table to TMC2130 MSLUT registers using Prusa's exact compression algorithm"""
+        """
+        Exact replication of Prusa's tmc2130_set_wave compression algorithm
+        Lines 1190-1250 in tmc2130.cpp
+        """
         if not self.tmc_object:
             raise RuntimeError("TMC2130 driver object not available")
 
-        logging.info(f"TMC2130 {self.name}: Writing wave table with Prusa's compression algorithm")
+        logging.info(f"TMC2130 {self.name}: Writing wave table with exact Prusa compression")
 
-        # Log first few wave table values for debugging
+        # Log sample wave values for debugging
         sample_values = [wave_table[i] for i in [0, 32, 64, 96, 127, 128, 160, 192, 224, 255]]
         logging.info(f"TMC2130 {self.name}: Sample wave values: {sample_values}")
 
-        # Set MSLUTSTART register (matches Prusa: SIN0, AMP for constant torque)
-        start_sin_val = SIN0 & 0xFF
-        start_sin90_val = AMPLITUDE & 0xFF
-        self._set_tmc_field('start_sin', start_sin_val)
-        self._set_tmc_field('start_sin90', start_sin90_val)
-        logging.info(f"TMC2130 {self.name}: MSLUTSTART start_sin={start_sin_val}, start_sin90={start_sin90_val}")
+        # Set MSLUTSTART register (lines 1186-1188)
+        # For constant torque: tmc2130_wr_MSLUTSTART(axis, SIN0, AMP);
+        SIN0 = 0
+        AMP = 248
+        self._set_tmc_field('start_sin', SIN0 & 0xFF)
+        self._set_tmc_field('start_sin90', AMP & 0xFF)
+        logging.info(f"TMC2130 {self.name}: MSLUTSTART start_sin={SIN0}, start_sin90={AMP}")
 
-        # Prusa's compression algorithm - exact replication
-        va = 0  # previous vA
-        d0 = 0  # delta0
-        d1 = 1  # delta1
-        w = [1, 1, 1, 1]  # W bits (MSLUTSEL)
-        x = [255, 255, 255]  # X segment bounds (MSLUTSEL)
-        s = 0  # current segment
+        # Initialize compression state variables (lines 1158-1168)
+        vA = 0                      # value of currentA
+        va = 0                      # previous vA
+        d0 = 0                      # delta0
+        d1 = 1                      # delta1
+        w = [1, 1, 1, 1]           # W bits (MSLUTSEL)
+        x = [255, 255, 255]        # X segment bounds (MSLUTSEL)
+        s = 0                       # current segment
+        b = 0                       # encoded bit value
+        dA = 0                      # delta value
+        i = 0                       # microstep index
+        reg = 0                     # tmc2130 register
 
-        # Process all 256 wave values using Prusa's compression
-        for i in range(256):
-            if (i & 0x1f) == 0:  # Every 32 values, start new register
+        # Main compression loop (lines 1190-1248)
+        while True:
+            if (i & 0x1f) == 0:  # Every 32 values, start new register (line 1192-1193)
                 reg = 0
 
-            vA = wave_table[i]
-            dA = vA - va  # calculate delta (line 1205 in Prusa)
-            va = vA
+            vA = wave_table[i]  # Get wave value (equivalent to line 1196)
+            dA = vA - va        # calculate delta (line 1205)
+            va = vA             # update previous value (line 1206)
 
-            b = -1
+            b = -1              # initialize encoded bit (line 1207)
+
+            # Exact Prusa delta encoding logic (lines 1208-1238)
             if dA == d0:
-                b = 0  # delta == delta0 => bit=0
+                b = 0           # delta == delta0 => bit=0 (line 1208)
             elif dA == d1:
-                b = 1  # delta == delta1 => bit=1
+                b = 1           # delta == delta1 => bit=1 (line 1209)
             else:
-                # Adaptive delta encoding (Prusa's optimization)
-                if s < 3:
-                    if dA < d0:
-                        d1 = d0
-                        d0 = dA
-                        b = 0
-                    elif dA > d1:
-                        d0 = d1
-                        d1 = dA
-                        b = 1
+                # Adaptive delta switching (lines 1210-1237)
+                if dA < d0:     # delta < delta0 => switch wbit down (line 1212)
+                    b = 0
+                    # Exact Prusa switch cases (lines 1216-1221)
+                    if dA == -1:
+                        d0, d1 = -1, 0
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 0
+                    elif dA == 0:
+                        d0, d1 = 0, 1
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 1
+                    elif dA == 1:
+                        d0, d1 = 1, 2
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 2
                     else:
-                        b = (dA + 1) // 2  # Fallback encoding
+                        b = -1  # delta out of range
 
-                    # Update segment bounds and weights
-                    if b >= 0:
-                        w[s] = b
-                        if s < 2:
-                            x[s] = i
-                        s += 1
-                else:
-                    b = (dA + 1) // 2  # Standard encoding for later segments
+                    if b >= 0 and s < 3:  # Bounds check for both x and s
+                        x[s] = i    # set segment boundary (line 1223)
+                        s += 1      # increment segment (line 1223)
 
-            # Prusa's bit encoding (lines 1242-1246)
+                elif dA > d1:   # delta > delta1 => switch wbit up (line 1225)
+                    b = 1
+                    # Exact Prusa switch cases (lines 1229-1234)
+                    if dA == 1:
+                        d0, d1 = 0, 1
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 1
+                    elif dA == 2:
+                        d0, d1 = 1, 2
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 2
+                    elif dA == 3:
+                        d0, d1 = 2, 3
+                        if s+1 < 4:  # Bounds check
+                            w[s+1] = 3
+                    else:
+                        b = -1  # delta out of range
+
+                    if b >= 0 and s < 3:  # Bounds check for both x and s
+                        x[s] = i    # set segment boundary (line 1236)
+                        s += 1      # increment segment (line 1236)
+
+            # Check for compression failure (lines 1239-1240)
+            if b < 0:   # delta out of range (<-1 or >3)
+                break
+            if s > 3:   # segment out of range (> 3)
+                break
+
+            # Exact Prusa bit encoding (lines 1242-1246)
             if b == 1:
-                reg |= 0x80000000
+                reg |= 0x80000000   # set MSB if bit=1 (line 1242)
 
-            if (i & 31) == 31:  # Every 32nd value, write register
+            if (i & 31) == 31:      # Every 32nd value, write register (line 1243)
                 field_name = f'mslut{i >> 5}'
                 self._set_tmc_field(field_name, reg)
                 logging.info(f"TMC2130 {self.name}: {field_name}=0x{reg:08x}")
             else:
-                reg >>= 1
+                reg >>= 1           # shift right (line 1246)
 
-        # Set MSLUTSEL register with computed values (line 1249)
+            # Increment and check loop termination (line 1248)
+            if i == 255:
+                break
+            i += 1
+
+        # Write MSLUTSEL register (line 1249)
+        # tmc2130_wr_MSLUTSEL(axis, x[0], x[1], x[2], w[0], w[1], w[2], w[3]);
         self._set_tmc_field('w0', w[0])
         self._set_tmc_field('w1', w[1])
         self._set_tmc_field('w2', w[2])
@@ -400,7 +491,7 @@ class TMC2130LinearityCorrection:
         self._set_tmc_field('x3', x[2])
 
         logging.info(f"TMC2130 {self.name}: MSLUTSEL w=[{w[0]},{w[1]},{w[2]},{w[3]}] x=[{x[0]},{x[1]},{x[2]}]")
-        logging.info(f"TMC2130 {self.name}: Prusa compression algorithm completed")
+        logging.info(f"TMC2130 {self.name}: Exact Prusa compression completed")
 
     def _set_tmc_field(self, field_name, value):
         """Set a TMC2130 register field using Klipper's TMC interface"""
