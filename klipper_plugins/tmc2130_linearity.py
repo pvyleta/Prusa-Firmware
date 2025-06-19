@@ -329,10 +329,11 @@ class TMC2130LinearityCorrection:
         Exact replication of Prusa's constant torque wave generation
         From tmc2130_set_wave function lines 1148-1250
         """
-        # Exact Prusa factor calculation (lines 1155-1156)
+        # Convert linearity_factor back to actual factor value
+        # Our linearity_factor is stored as int(factor * 1000), so divide by 1000 to get actual factor
         fac1000 = self.linearity_factor
         if fac1000:
-            fac = float((fac1000 + 1000)) / 1000.0  # correction factor
+            fac = float(fac1000) / 1000.0  # Convert back to actual factor (1.05, 1.1, etc.)
         else:
             fac = 1.0
 
