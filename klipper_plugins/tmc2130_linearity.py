@@ -750,9 +750,20 @@ class TMC2130LinearityCorrection:
             # Get force_move object
             force_move = self.printer.lookup_object('force_move')
 
+            # Get the actual MCU_stepper object that force_move.manual_move() expects
+            if hasattr(self.stepper_object, 'extruder_stepper') and self.stepper_object.extruder_stepper:
+                # For PrinterExtruder objects: use extruder.extruder_stepper.stepper
+                mcu_stepper = self.stepper_object.extruder_stepper.stepper
+            elif hasattr(self.stepper_object, 'stepper'):
+                # For ExtruderStepper objects: use extruder_stepper.stepper
+                mcu_stepper = self.stepper_object.stepper
+            else:
+                # For PrinterStepper objects: use directly (this is already MCU_stepper)
+                mcu_stepper = self.stepper_object
+
             # Perform the movement at slow speed for precision
             speed = 1.0  # mm/s - slow for precision
-            force_move.manual_move(self.stepper_object, distance_mm, speed)
+            force_move.manual_move(mcu_stepper, distance_mm, speed)
 
             # Wait for movement to complete
             toolhead = self.printer.lookup_object('toolhead')
