@@ -721,25 +721,19 @@ class TMC2130LinearityCorrection:
 
             # Calculate distance in mm
             # Each microstep is 1/microstep_resolution of a full step
-            # In newer Klipper versions, get step distance from stepper config
-            try:
-                # Try newer Klipper API first
+            # Get step distance from the correct stepper object based on verified Klipper APIs
+            if hasattr(self.stepper_object, 'extruder_stepper') and self.stepper_object.extruder_stepper:
+                # For PrinterExtruder objects: extruder.extruder_stepper.stepper.get_step_dist()
+                step_dist = self.stepper_object.extruder_stepper.stepper.get_step_dist()
+            elif hasattr(self.stepper_object, 'stepper'):
+                # For ExtruderStepper objects: extruder_stepper.stepper.get_step_dist()
+                step_dist = self.stepper_object.stepper.get_step_dist()
+            elif hasattr(self.stepper_object, 'get_step_dist'):
+                # For PrinterStepper objects: stepper.get_step_dist()
                 step_dist = self.stepper_object.get_step_dist()
-            except AttributeError:
-                # Fallback for newer Klipper versions - get from stepper config
-                # For extruder, we need to get the step distance differently
-                if hasattr(self.stepper_object, 'stepper'):
-                    # For extruder objects, get the underlying stepper
-                    stepper = self.stepper_object.stepper
-                    if hasattr(stepper, 'get_step_dist'):
-                        step_dist = stepper.get_step_dist()
-                    else:
-                        # Calculate from rotation_distance and gear_ratio
-                        # Default step distance for typical extruder setup
-                        step_dist = 0.0024  # Approximate for E3D V6 with 1.8° stepper
-                else:
-                    # For regular steppers, use default calculation
-                    step_dist = 0.0125  # 1.8° stepper with 16 microsteps = 0.0125mm/step
+            else:
+                # Fallback - should not happen with current Klipper
+                raise RuntimeError(f"Cannot determine step distance for {self.name}")
 
             microstep_dist = step_dist / microstep_resolution
 
