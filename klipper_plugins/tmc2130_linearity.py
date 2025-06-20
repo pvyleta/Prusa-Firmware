@@ -713,66 +713,52 @@ class TMC2130LinearityCorrection:
             raise
 
     def _perform_force_move_steps(self, steps, direction, microstep_resolution):
-        """Perform stepper movement using Klipper's force_move system"""
+        """Perform stepper movement using direct pin control (matches Prusa exactly)"""
         try:
-            # Get the stepper object
-            if not self.stepper_object:
-                raise RuntimeError(f"Stepper object not available for {self.name}")
-
-            # Calculate distance in mm
-            # Each microstep is 1/microstep_resolution of a full step
-            # Get step distance from the correct stepper object based on verified Klipper APIs
-            if hasattr(self.stepper_object, 'extruder_stepper') and self.stepper_object.extruder_stepper:
-                # For PrinterExtruder objects: extruder.extruder_stepper.stepper.get_step_dist()
-                step_dist = self.stepper_object.extruder_stepper.stepper.get_step_dist()
-            elif hasattr(self.stepper_object, 'stepper'):
-                # For ExtruderStepper objects: extruder_stepper.stepper.get_step_dist()
-                step_dist = self.stepper_object.stepper.get_step_dist()
-            elif hasattr(self.stepper_object, 'get_step_dist'):
-                # For PrinterStepper objects: stepper.get_step_dist()
-                step_dist = self.stepper_object.get_step_dist()
-            else:
-                # Fallback - should not happen with current Klipper
-                raise RuntimeError(f"Cannot determine step distance for {self.name}")
-
-            microstep_dist = step_dist / microstep_resolution
-
-            # Apply direction (negative distance for reverse direction)
-            distance_mm = steps * microstep_dist
-            if direction == 0:  # Reverse direction
-                distance_mm = -distance_mm
-
             logging.info(
-                f"TMC2130 {self.name}: Moving {distance_mm:.6f}mm "
-                f"({steps} microsteps, direction={direction}, step_dist={step_dist:.6f}mm)"
+                f"TMC2130 {self.name}: Performing {steps} steps, direction={direction}, "
+                f"using direct pin control (Prusa-compatible)"
             )
 
-            # Get force_move object
-            force_move = self.printer.lookup_object('force_move')
+            # Check if we have pin access for direct control
+            if not self.step_pin or not self.dir_pin:
+                logging.warning(
+                    f"TMC2130 {self.name}: No pin access available, skipping step movement. "
+                    f"step_pin={self.step_pin}, dir_pin={self.dir_pin}"
+                )
+                return
 
-            # Get the actual MCU_stepper object that force_move.manual_move() expects
-            if hasattr(self.stepper_object, 'extruder_stepper') and self.stepper_object.extruder_stepper:
-                # For PrinterExtruder objects: use extruder.extruder_stepper.stepper
-                mcu_stepper = self.stepper_object.extruder_stepper.stepper
-            elif hasattr(self.stepper_object, 'stepper'):
-                # For ExtruderStepper objects: use extruder_stepper.stepper
-                mcu_stepper = self.stepper_object.stepper
-            else:
-                # For PrinterStepper objects: use directly (this is already MCU_stepper)
-                mcu_stepper = self.stepper_object
-
-            # Perform the movement at slow speed for precision
-            speed = 1.0  # mm/s - slow for precision
-            force_move.manual_move(mcu_stepper, distance_mm, speed)
-
-            # Wait for movement to complete
+            # Get toolhead for timing
             toolhead = self.printer.lookup_object('toolhead')
-            toolhead.wait_moves()
+            print_time = toolhead.get_last_move_time()
 
-            logging.info(f"TMC2130 {self.name}: Force move completed successfully")
+            # Set direction pin first (matches Prusa: tmc2130_set_dir)
+            self._set_dir_pin_direct(direction, print_time)
+            print_time += 0.000001  # 1μs delay after direction change
+
+            # Perform steps using direct pin control (matches Prusa: tmc2130_do_step)
+            step_delay = 1000  # microseconds (matches Prusa default delay)
+            step_interval = step_delay / 1000000.0  # Convert to seconds
+
+            for step in range(steps):
+                # Execute single step pulse (matches Prusa: _DO_STEP_X macros)
+                self._execute_step_pulse_direct(print_time)
+                print_time += step_interval
+
+                # Log progress for debugging
+                if step < 5 or step % 10 == 0 or step >= steps - 5:
+                    logging.debug(f"TMC2130 {self.name}: Step {step + 1}/{steps} executed")
+
+            # Update toolhead timing to account for all steps
+            toolhead.note_kinematic_activity(print_time)
+
+            logging.info(
+                f"TMC2130 {self.name}: Completed {steps} direct pin steps, "
+                f"direction={direction}, total_time={steps * step_interval:.6f}s"
+            )
 
         except Exception as e:
-            logging.error(f"Failed to perform force move for {self.name}: {e}")
+            logging.error(f"Failed to perform direct pin steps for {self.name}: {e}")
             raise
 
     def _get_axis_inversion(self):
@@ -875,7 +861,7 @@ class TMC2130LinearityCorrection:
                         break  # Target reached
 
                 # Execute step (matches: tmc2130_do_step(axis))
-                self._schedule_step_pulse(current_time)
+                self._execute_step_pulse_direct(current_time)
                 current_time += step_interval
                 steps_taken += 1
                 cnt -= 1
@@ -926,15 +912,12 @@ class TMC2130LinearityCorrection:
 
 
 
-    def _set_dir_pin(self, direction):
-        """Set direction pin (matches tmc2130_set_dir and _SET_DIR_X macros)"""
+    def _set_dir_pin_direct(self, direction, print_time):
+        """Set direction pin directly (matches tmc2130_set_dir and _SET_DIR_X macros)"""
         try:
             if not self.dir_pin:
-                raise RuntimeError("Direction pin not available")
-
-            # Get current print time for pin scheduling
-            toolhead = self.printer.lookup_object('toolhead')
-            print_time = toolhead.get_last_move_time()
+                logging.warning(f"Direction pin not available for {self.name}")
+                return
 
             # Apply direction inversion (matches _SET_DIR_X macros)
             # Prusa: WRITE(X_DIR_PIN, dir?INVERT_X_DIR:!INVERT_X_DIR)
@@ -953,11 +936,12 @@ class TMC2130LinearityCorrection:
             logging.error(f"Failed to set direction pin for {self.name}: {e}")
             raise
 
-    def _schedule_step_pulse(self, print_time):
-        """Schedule a step pulse using Klipper's timing system"""
+    def _execute_step_pulse_direct(self, print_time):
+        """Execute a single step pulse directly (matches _DO_STEP_X macros)"""
         try:
             if not self.step_pin:
-                raise RuntimeError("Step pin not available")
+                logging.warning(f"Step pin not available for {self.name}")
+                return
 
             # Get step pin inversion setting
             step_inverted = self._get_step_pin_inversion()
@@ -968,14 +952,29 @@ class TMC2130LinearityCorrection:
             inactive_level = 1 if step_inverted else 0
 
             # Schedule step pulse: active -> inactive with proper timing
-            self.step_pin.set_digital(print_time, active_level)  # Step active
-            self.step_pin.set_digital(print_time + 0.000001, inactive_level)  # Step inactive after 1μs
+            # Matches Prusa TMC2130_MINIMUM_DELAY (1μs minimum pulse width)
+            pulse_width = 0.000001  # 1 microsecond
 
-            logging.debug(f"Step pulse scheduled for {self.name} at {print_time}")
+            self.step_pin.set_digital(print_time, active_level)  # Step active
+            self.step_pin.set_digital(print_time + pulse_width, inactive_level)  # Step inactive
+
+            logging.debug(f"Step pulse executed for {self.name} at {print_time}")
 
         except Exception as e:
-            logging.error(f"Failed to schedule step pulse for {self.name}: {e}")
+            logging.error(f"Failed to execute step pulse for {self.name}: {e}")
             raise
+
+    def _set_dir_pin(self, direction):
+        """Set direction pin (legacy method for compatibility)"""
+        try:
+            toolhead = self.printer.lookup_object('toolhead')
+            print_time = toolhead.get_last_move_time()
+            self._set_dir_pin_direct(direction, print_time)
+        except Exception as e:
+            logging.error(f"Failed to set direction pin for {self.name}: {e}")
+            raise
+
+
 
     def _get_step_pin_inversion(self):
         """Get step pin inversion setting"""
