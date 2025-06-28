@@ -330,6 +330,10 @@ extern const char MSG_X_CHOPPER_CFG [] PROGMEM_I1 = ISTR("X chopper cfg"); ////M
 extern const char MSG_Y_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Y chopper cfg"); ////MSG_Y_CHOPPER_CFG c=18
 extern const char MSG_Z_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Z chopper cfg"); ////MSG_Z_CHOPPER_CFG c=18
 extern const char MSG_E_CHOPPER_CFG [] PROGMEM_I1 = ISTR("E chopper cfg"); ////MSG_E_CHOPPER_CFG c=18
+extern const char MSG_X_STEPPER [] PROGMEM_I1 = ISTR("X stepper"); ////MSG_X_STEPPER c=13
+extern const char MSG_Y_STEPPER [] PROGMEM_I1 = ISTR("Y stepper"); ////MSG_Y_STEPPER c=13
+extern const char MSG_Z_STEPPER [] PROGMEM_I1 = ISTR("Z stepper"); ////MSG_Z_STEPPER c=13
+extern const char MSG_E_STEPPER [] PROGMEM_I1 = ISTR("E stepper"); ////MSG_E_STEPPER c=13
 extern const char MSG_CHECKS [] PROGMEM_I1 = ISTR("Checks"); ////MSG_CHECKS c=18
 extern const char MSG_TEMPERATURE [] PROGMEM_I1 = ISTR("Temperature"); ////MSG_TEMPERATURE c=18
 extern const char MSG_MOVE_AXIS [] PROGMEM_I1 = ISTR("Move axis"); ////MSG_MOVE_AXIS c=18

@@ -526,6 +526,22 @@ msgstr "Z Chopper Konf."
 msgid "E chopper cfg"
 msgstr "E Chopper Konf."
 
+#. MSG_X_STEPPER c=13
+msgid "X stepper"
+msgstr "X Schrittmotor"
+
+#. MSG_Y_STEPPER c=13
+msgid "Y stepper"
+msgstr "Y Schrittmotor"
+
+#. MSG_Z_STEPPER c=13
+msgid "Z stepper"
+msgstr "Z Schrittmotor"
+
+#. MSG_E_STEPPER c=13
+msgid "E stepper"
+msgstr "E Schrittmotor"
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48

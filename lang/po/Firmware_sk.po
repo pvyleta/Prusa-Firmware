@@ -512,6 +512,22 @@ msgstr "Z chopper konf"
 msgid "E chopper cfg"
 msgstr "E chopper konf"
 
+#. MSG_X_STEPPER c=13
+msgid "X stepper"
+msgstr "X krokový"
+
+#. MSG_Y_STEPPER c=13
+msgid "Y stepper"
+msgstr "Y krokový"
+
+#. MSG_Z_STEPPER c=13
+msgid "Z stepper"
+msgstr "Z krokový"
+
+#. MSG_E_STEPPER c=13
+msgid "E stepper"
+msgstr "E krokový"
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48
