@@ -8,6 +8,7 @@
 #include "language.h"
 #include "spi.h"
 #include "Timer.h"
+#include <math.h>
 
 #define TMC2130_GCONF_NORMAL 0x00000000 // spreadCycle
 #define TMC2130_GCONF_SGSENS 0x00000180 // spreadCycle with stallguard (stall activates DIAG0 and DIAG1 [open collector])
@@ -883,6 +884,11 @@ void tmc2130_get_wave(uint8_t axis, uint8_t* data)
 	tmc2130_set_pwr(axis, pwr);
 }
 
+// TMC2130 Wave Generation with Algorithm Selection
+//
+// Algorithm Overview:
+// - Original: Simple sine wave with power factor adjustment
+// - Constant Torque: Maintains |A|² + |B|² = constant throughout microstep cycle
 void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 {
 // TMC2130 wave compression algorithm
@@ -890,7 +896,7 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 //	printf_P(PSTR("tmc2130_set_wave %d %d\n"), axis, fac1000);
 	if (fac1000 < TMC2130_WAVE_FAC1000_MIN) fac1000 = 0;
 	if (fac1000 > TMC2130_WAVE_FAC1000_MAX) fac1000 = TMC2130_WAVE_FAC1000_MAX;
-	float fac = 0;
+	float fac = 1;
 	if (fac1000) fac = ((float)((uint16_t)fac1000 + 1000) / 1000); //correction factor
 //	printf_P(PSTR(" factor: %s\n"), ftostr43(fac));
 	uint8_t vA = 0;                //value of currentA
@@ -904,16 +910,40 @@ void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000)
 	int8_t dA;                     //delta value
 	uint8_t i = 0;                         //microstep index
 	uint32_t reg = 0;              //tmc2130 register
-	tmc2130_wr_MSLUTSTART(axis, 0, amp);
+
+	// Constant torque algorithm parameters (only used if use_constant_torque is true)
+	float carry = 0.0;  // Carry value to handle rounding adjustments
+	float prev_theoretical_value = 0.0;  // Cache previous theoretical value for slope calculation (initialized with SIN0)
+	float tcorr = 1.0;  // Pre-calculated correction factor for constant torque algorithm
+
+	uint8_t algorithm = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM);
+	bool use_constant_torque = (algorithm == TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE);
+
+	// Pre-calculate tcorr for constant torque algorithm to avoid redundant calculations
+	if (use_constant_torque) {
+		constexpr uint8_t SIN0 = 0;
+		constexpr uint8_t AMP = 248;  // Amplitude limit as per AD recommendation
+		constexpr float MIDPOINT_VALUE = 175.362481734263781f;  // sqrt((AMP² + SIN0²) / 2)
+		constexpr float SIN_127_5 = 0.704934080375905f;  // sin(M_PI * 127.5f / 512.0f)
+
+		tcorr = (MIDPOINT_VALUE - SIN0) / ((AMP - SIN0) * pow(SIN_127_5, fac));
+		tmc2130_wr_MSLUTSTART(axis, SIN0, AMP);
+	} else {
+		tmc2130_wr_MSLUTSTART(axis, 0, amp);
+	}
 	do
 	{
 		if ((i & 0x1f) == 0)
 			reg = 0;
-		// calculate value
-		if (fac == 0) // default TMC wave
-			vA = (uint8_t)((amp+1) * sin((2*PI*i + PI)/1024) + 0.5) - 1;
-		else // corrected wave
-			vA = (uint8_t)(amp * pow(sin(2*PI*i/1024), fac) + 0.5);
+		if (use_constant_torque) {
+			vA = tmc2130_calc_constant_torque_value(i, va, fac, tcorr, carry, prev_theoretical_value);
+		} else {
+			// calculate value
+			if (fac == 1) // default TMC wave
+				vA = (uint8_t)((amp+1) * sin((2*PI*i + PI)/1024) + 0.5) - 1;
+			else // corrected wave
+				vA = (uint8_t)(amp * pow(sin(2*PI*i/1024), fac) + 0.5);
+		}
 		dA = vA - va; // calculate delta
 		va = vA;
 		b = -1;
@@ -1132,6 +1162,53 @@ float tmc2130_val2cur(uint8_t val)
 	return cur * 1000; //return current in mA
 }
 
+// TMC2130 constant torque algorithm for linearity correction
+//
+// This function implements an advanced constant torque algorithm that maintains
+// |A|² + |B|² = constant throughout the microstep cycle for consistent motor torque.
+//
+// Parameters:
+// - i: microstep index (0-255)
+// - va: previous amplitude value (for slope calculation)
+// - fac: correction factor (typically 1000-based)
+// - tcorr: torque correction multiplier
+// - carry: quantization error carry-forward (modified by reference)
+// - prev_theoretical_value: previous theoretical value for slope calculation (modified by reference)
+//
+// Returns: 8-bit amplitude value clamped to [SIN0, AMP] range
+//
+// References:
+// - https://forum.prusa3d.com/forum/original-prusa-i3-mk3s-mk3-user-mods-octoprint-enclosures-nozzles/stepper-motor-upgrades-to-eliminate-vfa-s-vertical-fine-artifacts/paged/2/
+// - Analog Devices AN-026: "Stepper Motor Control Using TMC2130"
+//   https://www.analog.com/en/resources/app-notes/an-026.html
+uint8_t tmc2130_calc_constant_torque_value(uint8_t i, uint8_t va, float fac, float tcorr,
+                                          float& carry, float& prev_theoretical_value) {
+	constexpr uint8_t SIN0 = 0;
+	constexpr uint8_t AMP = 248;
+
+	// Calculate theoretical value using constant torque algorithm
+	// Use full range utilization with natural mirroring approach
+	float theoretical_value = SIN0 + AMP * sin(M_PI * i / 128.0);
+
+	// Apply torque correction factor
+	theoretical_value *= tcorr;
+
+	// Add carry from previous calculation for quantization error reduction
+	theoretical_value += carry;
+
+	// Calculate integer part and new carry
+	uint8_t result = (uint8_t)theoretical_value;
+	carry = theoretical_value - result;
+
+	// Store for next iteration (slope analysis)
+	prev_theoretical_value = theoretical_value;
+
+	// Ensure result is within valid range [SIN0, AMP]
+	if (result < SIN0) result = SIN0;
+	if (result > AMP) result = AMP;
+
+	return result;
+}
 
 
 #endif //TMC2130

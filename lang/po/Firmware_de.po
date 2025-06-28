@@ -466,6 +466,21 @@ msgstr "Klar"
 msgid "E-correct"
 msgstr "E-Korrektur"
 
+#. MSG_WAVE_ALGORITHM c=13
+#: ../../Firmware/messages.cpp:322
+msgid "Algorithm"
+msgstr "Algorithmus"
+
+#. MSG_ALGORITHM_DEFAULT c=13
+#: ../../Firmware/messages.cpp:323
+msgid "Default"
+msgstr "Standard"
+
+#. MSG_ALGORITHM_CONST_TQ c=13
+#: ../../Firmware/messages.cpp:324
+msgid "Const tq"
+msgstr "Konst. Drehm"
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48
