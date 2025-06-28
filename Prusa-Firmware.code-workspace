@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../klipper"
+		},
+		{
+			"path": "../printer_data"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"xlocale": "cpp"
+		}
+	}
+}
