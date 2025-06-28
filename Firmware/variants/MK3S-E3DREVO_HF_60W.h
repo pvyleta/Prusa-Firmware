@@ -313,6 +313,13 @@
 #define TMC2130_TPWMTHRS_E 403      // Switch extruder from StealthChop to SpreadCycle at around 900mm/min
 #define TMC2130_THIGH     0         // THIGH - unused
 
+// Define coolStep threshold speeds in mm/s
+// coolStep becomes active when the stepper speed drops below this threshold
+#define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s
+#define TMC2130_TCOOLTHRS_E_SPEED 11  // E axis coolStep threshold in mm/s
+
 //#define TMC2130_TCOOLTHRS_X 450       // TCOOLTHRS - coolstep treshold
 //#define TMC2130_TCOOLTHRS_Y 450       // TCOOLTHRS - coolstep treshold
 #define TMC2130_TCOOLTHRS_X 430       // TCOOLTHRS - coolstep treshold
