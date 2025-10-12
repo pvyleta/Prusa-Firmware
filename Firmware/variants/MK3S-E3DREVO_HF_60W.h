@@ -332,13 +332,30 @@
 #define TMC2130_SG_THRS_HOME {3, 3, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
 
 //new settings is possible for vsense = 1, running current value > 31 set vsense to zero and shift both currents by 1 bit right (Z axis only)
-#define TMC2130_CURRENTS_H {16, 20, 35, 30}  // default holding currents for all axes
+#define TMC2130_CURRENTS_H {15, 19, 35, 29}  // default holding currents for all axes
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
-#define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
+#define TMC2130_CURRENTS_R {15, 19, 35, 29}  // default running currents for all axes
 #define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
 
 #define TMC2130_STEALTH_Z
 #define TMC2130_DEDGE_STEPPING
+
+// COOLCONF register configuration values for enhanced coolStep
+// Based on TMC2130 datasheet rev1.15 and Analog Devices AN-026 application note
+#define TMC2130_COOLCONF_SEMIN   1    // minimum stallGuard2 value (0: coolStep disabled, 1-15: coolStep enabled)
+#define TMC2130_COOLCONF_SEUP    0    // current increment size (0: 1, 1: 2, 2: 4, 3: 8)
+#define TMC2130_COOLCONF_SEMAX   0    // stallGuard2 hysteresis value (0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32, 6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096, 13: 8192, 14: 16384, 15: 32768)
+#define TMC2130_COOLCONF_SEDN    0    // current down step speed (0: 32, 1: 8, 2: 2, 3: 1)
+#define TMC2130_COOLCONF_SEIMIN  0    // minimum current for smart current control (0: 1/2 of current setting, 1: 1/4 of current setting)
+#define TMC2130_COOLCONF_SFILT   1    // stallGuard2 filter enable (0: standard mode, 1: filtered mode)
+
+// E-axis specific COOLCONF configuration (typically different from XYZ)
+#define TMC2130_COOLCONF_E_SEMIN   0    // minimum stallGuard2 value for E-axis (0: coolStep disabled, 1-15: coolStep enabled)
+#define TMC2130_COOLCONF_E_SEUP    0    // current increment size for E-axis (0: 1, 1: 2, 2: 4, 3: 8)
+#define TMC2130_COOLCONF_E_SEMAX   0    // stallGuard2 hysteresis value for E-axis (0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32, 6: 64, 7: 128, 8: 256, 9: 512, 10: 1024, 11: 2048, 12: 4096, 13: 8192, 14: 16384, 15: 32768)
+#define TMC2130_COOLCONF_E_SEDN    0    // current down step speed for E-axis (0: 32, 1: 8, 2: 2, 3: 1)
+#define TMC2130_COOLCONF_E_SEIMIN  0    // minimum current for smart current control for E-axis (0: 1/2 of current setting, 1: 1/4 of current setting)
+#define TMC2130_COOLCONF_E_SFILT   0    // stallGuard2 filter enable for E-axis (0: standard mode, 1: filtered mode)
 
 //#define TMC2130_SERVICE_CODES_M910_M918
 
