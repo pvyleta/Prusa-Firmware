@@ -317,6 +317,9 @@ extern const char MSG_X_CORRECTION [] PROGMEM_I1 = ISTR("X-correct"); ////MSG_X_
 extern const char MSG_Y_CORRECTION [] PROGMEM_I1 = ISTR("Y-correct"); ////MSG_Y_CORRECTION c=13
 extern const char MSG_Z_CORRECTION [] PROGMEM_I1 = ISTR("Z-correct"); ////MSG_Z_CORRECTION c=13
 extern const char MSG_EXTRUDER_CORRECTION [] PROGMEM_I1 = ISTR("E-correct"); ////MSG_EXTRUDER_CORRECTION c=13
+extern const char MSG_WAVE_ALGORITHM [] PROGMEM_I1 = ISTR("Algorithm"); ////MSG_WAVE_ALGORITHM c=13
+extern const char MSG_ALGORITHM_DEFAULT [] PROGMEM_I1 = ISTR("Default"); ////MSG_ALGORITHM_DEFAULT c=13
+extern const char MSG_ALGORITHM_CONST_TQ [] PROGMEM_I1 = ISTR("Const tq"); ////MSG_ALGORITHM_CONST_TQ c=13
 extern const char MSG_CUSTOM_STEPPERS [] PROGMEM_I1 = ISTR("Custom steppers"); ////MSG_CUSTOM_STEPPERS c=18
 extern const char MSG_TOFF [] PROGMEM_I1 = ISTR("toff"); ////MSG_TOFF c=13
 extern const char MSG_HSTR [] PROGMEM_I1 = ISTR("hstr"); ////MSG_HSTR c=13

@@ -467,6 +467,18 @@ msgstr "Gata"
 msgid "E-correct"
 msgstr "E-corecție"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritm"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Implicit"
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Cpl.cst."
+
 #. MSG_CUSTOM_STEPPERS c=15
 msgid "Custom steppers"
 msgstr "Motoare person."
