@@ -317,6 +317,15 @@ extern const char MSG_X_CORRECTION [] PROGMEM_I1 = ISTR("X-correct"); ////MSG_X_
 extern const char MSG_Y_CORRECTION [] PROGMEM_I1 = ISTR("Y-correct"); ////MSG_Y_CORRECTION c=13
 extern const char MSG_Z_CORRECTION [] PROGMEM_I1 = ISTR("Z-correct"); ////MSG_Z_CORRECTION c=13
 extern const char MSG_EXTRUDER_CORRECTION [] PROGMEM_I1 = ISTR("E-correct"); ////MSG_EXTRUDER_CORRECTION c=13
+extern const char MSG_CUSTOM_STEPPERS [] PROGMEM_I1 = ISTR("Custom steppers"); ////MSG_CUSTOM_STEPPERS c=18
+extern const char MSG_TOFF [] PROGMEM_I1 = ISTR("toff"); ////MSG_TOFF c=13
+extern const char MSG_HSTR [] PROGMEM_I1 = ISTR("hstr"); ////MSG_HSTR c=13
+extern const char MSG_HEND [] PROGMEM_I1 = ISTR("hend"); ////MSG_HEND c=13
+extern const char MSG_TBL [] PROGMEM_I1 = ISTR("tbl"); ////MSG_TBL c=13
+extern const char MSG_X_CHOPPER_CFG [] PROGMEM_I1 = ISTR("X chopper cfg"); ////MSG_X_CHOPPER_CFG c=18
+extern const char MSG_Y_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Y chopper cfg"); ////MSG_Y_CHOPPER_CFG c=18
+extern const char MSG_Z_CHOPPER_CFG [] PROGMEM_I1 = ISTR("Z chopper cfg"); ////MSG_Z_CHOPPER_CFG c=18
+extern const char MSG_E_CHOPPER_CFG [] PROGMEM_I1 = ISTR("E chopper cfg"); ////MSG_E_CHOPPER_CFG c=18
 extern const char MSG_CHECKS [] PROGMEM_I1 = ISTR("Checks"); ////MSG_CHECKS c=18
 extern const char MSG_TEMPERATURE [] PROGMEM_I1 = ISTR("Temperature"); ////MSG_TEMPERATURE c=18
 extern const char MSG_MOVE_AXIS [] PROGMEM_I1 = ISTR("Move axis"); ////MSG_MOVE_AXIS c=18

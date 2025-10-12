@@ -1,3 +1,35 @@
+# Customized MK3/MK3S(+) v3.14.1: Stepper Motor Upgrades to Eliminate VFA's (Vertical Fine Artifacts)
+
+In-menu support for 0.9 degree steppers, no need to erase eeprom (If you go from/to version 3.14.1 or lower), chopper config stored in eeprom. This project builds on work from [Clixter](https://github.com/Clixster/Prusa-Firmware/tree/MK3_3.11.0_CLX) and [Guykuo](https://github.com/guykuo/Prusa-Firmware/tree/0.9-Degree-Stepper-Support) and brings it to 3.14.1 FW. 
+
+I removed the support for geared extuders, Bear fram and custom thermistors to keep things reasonably simple. There is no need to recompile and reload the SW everytime you change a stepper - just change appropriate config in LCD menu. Supports only MK3/MK3S(+) as it depends on TMC2130 drivers.
+
+- To make changes, go in printer menu to Settings -> HW Config -> Custom Steppers
+- You can select stepper for each axis independently
+- You can then fine-tune chopper config for the axis if you wish.
+- All changes are applied immediately and persisted to eeprom.
+- Selecting a stepper will reset chopper config to default values.
+
+   * Updates based on content from https://forum.prusa3d.com/forum/original-prusa-i3-mk3s-mk3-user-mods-octoprint-enclosures-nozzles/stepper-motor-upgrades-to-eliminate-vfa-s-vertical-fine-artifacts/
+   * Additional updates made and 'CLX' Comment added
+	* Stepper motors Variants (X&Y Axis)
+     * Option 1: Moons MS17HA2P4100 0.9° steppers
+     * Option 2: OMC-Stepperonline 17HM15-0904S 0.9° stepper
+
+Notes:
+- enabled TMC2130_SERVICE_CODES_M910_M918 
+- TMC2130_STEALTH_Z was disabled by Clixter, I re-enabled it
+- TMC2130_DEDGE_STEPPING was removed by Guykuo - it almost seems like ommitment, as it was not mentioned anywhere in the original prusa thread
+- since XY_AXIS_FEEDRATE is being used at multiple places for both X and Y axes, it is desirable to use identical motor types on both X and Y (Though it would likely work anyways)
+- TMC_SET_CHOP_[X|Y|Z] can be used to set choper parameters instead of M919-M922 introduced originally by Guykuo
+- Switching back to stock FW: Before you reflash, just set all 4 steppers to 'Prusa'. This erases all custom config in EEPROM and you can safely load stock FW. Note: clearing happens when Prusa stepper is selected, so in case you have custom chopper config on Prusa stepper, you need to click through the other steppers to ensure errasure.
+- If at some point you had FW newer than 3.14.1, you need to erase the eeprom, as there may be some leftover settings left at the addresses used by the newer FW
+
+## Which Branch to use?
+- MK3 is identical as prusa3d/MK3 + 0.9 degree stepper support (This you want to fork from)
+- MK3_3.14.1 is identical as prusa3d/MK3_3.14.1 + 0.9 degree stepper support (This you want to use)
+- MK3_3.14.1_CLX_port is identical as prusa3d/MK3_3.14.1 + original port from Clixster/MK3_3.11.0_CLX (only for reference)
+
 # Prusa Firmware MK3
 
 This repository contains the source code and the development versions of the firmware running on the [Original Prusa i3](https://prusa3d.com/) MK3S/MK3/MK2.5S/MK2.5 line of printers.

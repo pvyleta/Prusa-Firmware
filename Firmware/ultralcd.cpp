@@ -2582,6 +2582,181 @@ static void lcd_move_z() {
   _lcd_move(PSTR("Z:"), Z_AXIS, Z_MIN_POS, Z_MAX_POS);
 }
 
+#ifdef TMC2130
+static void _lcd_stepper_set(AxisEnum axis) {
+    // Pointer to the correct eeprom chopper config for the given axis
+    tmc2130_chopper_config_t* const eeprom_chopper_config = &((tmc2130_chopper_config_t*)EEPROM_TMC2130_CHOPPER_CONFIG)[axis];
+
+    // Select next stepper_type
+    switch (cs.stepper_type[axis])
+    {
+    case STEPPER_0_9_MOONS:
+        cs.stepper_type[axis] = STEPPER_0_9_OMC;
+        break;
+    case STEPPER_0_9_OMC:
+        cs.stepper_type[axis] = STEPPER_DEFAULT;
+        break;
+    case STEPPER_DEFAULT:
+    default:
+        cs.stepper_type[axis] = STEPPER_0_9_MOONS;
+        break;
+    }
+
+    // Make appropriate changes to correctly apply the new stepper
+    switch (cs.stepper_type[axis])
+    {
+    case STEPPER_0_9_MOONS:
+    case STEPPER_0_9_OMC:
+        cs.axis_ustep_resolution[axis] = (axis == E_AXIS) ? TMC2130_USTEPS_E_0_9 : TMC2130_USTEPS_XYZ_0_9;
+        tmc2130_chopper_config[axis] = tmc2130_chopper_config_0_9;
+        eeprom_write_block_notify(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
+        break;
+    case STEPPER_DEFAULT:
+    default:
+        cs.axis_ustep_resolution[axis] = (axis == E_AXIS) ? TMC2130_USTEPS_E : TMC2130_USTEPS_XY;
+#ifdef TMC2130_CNSTOFF_E
+        tmc2130_chopper_config[axis] = (axis == E_AXIS) ? tmc2130_chopper_config_1_8_cnstoff : tmc2130_chopper_config_1_8;
+#else // !TMC2130_CNSTOFF_E
+        tmc2130_chopper_config[axis] = tmc2130_chopper_config_1_8;
+#endif // !TMC2130_CNSTOFF_E
+        eeprom_write_word_notify((uint16_t*)eeprom_chopper_config, EEPROM_EMPTY_VALUE16); // Clear custom EEPROM chopper config
+        break;
+    }
+
+    pwmconf_load_settings(axis);
+    sg_thr_load_settings(axis);
+
+    tmc2130_mres[axis] = tmc2130_usteps2mres(cs.axis_ustep_resolution[axis]);
+    tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+    Config_StoreSettings();
+}
+
+void lcd_x_stepper_set()
+{
+    _lcd_stepper_set(X_AXIS);
+}
+
+void lcd_y_stepper_set()
+{
+    _lcd_stepper_set(Y_AXIS);
+}
+
+void lcd_z_stepper_set()
+{
+    _lcd_stepper_set(Z_AXIS);
+}
+
+void lcd_e_stepper_set()
+{
+    _lcd_stepper_set(E_AXIS);
+}
+#endif // TMC2130
+
+typedef struct
+{	// 12bytes + 5bytes = 17bytes total
+    menu_data_edit_t reserved; //12 bytes reserved for number editing functions
+	uint8_t status;            // 1byte
+	uint8_t toff;              // 1byte
+	uint8_t hstr;              // 1byte
+	uint8_t hend;              // 1byte
+	uint8_t tbl;               // 1byte
+} _menu_data_chopper_config_t;
+static_assert(sizeof(menu_data)>= sizeof(_menu_data_chopper_config_t),"_menu_data_chopper_config_t doesn't fit into menu_data");
+
+void _lcd_chopper_config_set(AxisEnum axis) {
+	_menu_data_chopper_config_t* _md = (_menu_data_chopper_config_t*)&(menu_data[0]);
+    tmc2130_chopper_config_t* const eeprom_chopper_config = &((tmc2130_chopper_config_t*)EEPROM_TMC2130_CHOPPER_CONFIG)[axis];
+
+    if (_md->status == 0)
+    {
+        _md->status = 1;
+        _md->toff = tmc2130_chopper_config[axis].toff;
+        _md->hstr = tmc2130_chopper_config[axis].hstr;
+        _md->hend = tmc2130_chopper_config[axis].hend;
+        _md->tbl = tmc2130_chopper_config[axis].tbl;
+    }
+
+    MENU_BEGIN();
+    ON_MENU_LEAVE(
+        tmc2130_chopper_config[axis].toff = _md->toff;
+        tmc2130_chopper_config[axis].hstr = _md->hstr & 7;
+        tmc2130_chopper_config[axis].hend = _md->hend & 15;
+        tmc2130_chopper_config[axis].tbl = _md->tbl & 3;
+        tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
+        eeprom_write_block_notify(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
+    );
+	MENU_ITEM_BACK_P(_N("Custom steppers"));
+    // See https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2130_datasheet_rev1.16.pdf
+    MENU_ITEM_EDIT_int3_P(_N("toff"), &_md->toff, 0, 15);
+    MENU_ITEM_EDIT_int3_P(_N("hstr"), &_md->hstr, 0, 8);
+    MENU_ITEM_EDIT_int3_P(_N("hend"), &_md->hend, 0, 15);
+    MENU_ITEM_EDIT_int3_P(_N("tbl"), &_md->tbl, 0, 3);
+	MENU_END();
+}
+
+static void lcd_x_chopper_config_set() {
+    _lcd_chopper_config_set(X_AXIS);
+}
+
+static void lcd_y_chopper_config_set() {
+    _lcd_chopper_config_set(Y_AXIS);
+}
+
+static void lcd_z_chopper_config_set() {
+    _lcd_chopper_config_set(Z_AXIS);
+}
+
+static void lcd_e_chopper_config_set() {
+    _lcd_chopper_config_set(E_AXIS);
+}
+
+#ifdef TMC2130
+static const char * stepper_type_to_str(uint8_t stepper_type) {
+    // Keeping message strings in PROGMEM since that is where MENU_ITEM_TOGGLE_P expects them
+    static const char MSG_PRUSA[] PROGMEM_N1 = "Prusa";
+    static const char MSG_MOONS[] PROGMEM_N1 = "Moons";
+    static const char MSG_OMC[] PROGMEM_N1 = "OMC";
+
+    switch(stepper_type)
+    {
+        case STEPPER_0_9_MOONS:
+            return MSG_MOONS;
+        case STEPPER_0_9_OMC:
+            return MSG_OMC;
+        case STEPPER_DEFAULT:
+        default:
+            return MSG_PRUSA;
+    }
+}
+
+void lcd_custom_steppers()
+{
+    // Keeping message strings in PROGMEM since that is where MENU_ITEM_TOGGLE_P expects them
+    static const char MSG_X_STEPPER[] PROGMEM_N1 = "X stepper";
+    static const char MSG_Y_STEPPER[] PROGMEM_N1 = "Y stepper";
+    static const char MSG_Z_STEPPER[] PROGMEM_N1 = "Z stepper";
+    static const char MSG_E_STEPPER[] PROGMEM_N1 = "E stepper";
+
+    // Keeping the array in data memory for a straightforward access
+    static const char * const stepper_axis[] = {MSG_X_STEPPER, MSG_Y_STEPPER, MSG_Z_STEPPER, MSG_E_STEPPER};
+
+    menu_func_t const stepper_func[] = {lcd_x_stepper_set, lcd_y_stepper_set, lcd_z_stepper_set, lcd_e_stepper_set};
+
+	MENU_BEGIN();
+	MENU_ITEM_BACK_P(_T(MSG_BACK));
+
+	for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        MENU_ITEM_TOGGLE_P(stepper_axis[axis], stepper_type_to_str(cs.stepper_type[axis]), stepper_func[axis]);
+    }
+
+	MENU_ITEM_SUBMENU_P(_N("X chopper cfg"), lcd_x_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_N("Y chopper cfg"), lcd_y_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_N("Z chopper cfg"), lcd_z_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_N("E chopper cfg"), lcd_e_chopper_config_set);
+
+	MENU_END();
+}
+#endif // TMC2130
 
 /**
  * @brief Adjust first layer offset from bed if axis is Z_AXIS
@@ -4395,6 +4570,10 @@ void lcd_hw_setup_menu(void)                      // can not be "static"
     //! @todo Don't forget to remove this as soon Fsensor Detection works with mmu
     if(!MMU2::mmu2.Enabled()) MENU_ITEM_FUNCTION_P(PSTR("Fsensor Detection"), lcd_detect_IRsensor);
 #endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_IR_ANALOG)
+
+#ifdef TMC2130
+    MENU_ITEM_SUBMENU_P(_N("Custom steppers"), lcd_custom_steppers);
+#endif
 
     if (_md->experimental_menu_visibility)
     {
@@ -7478,6 +7657,7 @@ void lcd_experimental_menu()
 #ifdef PRUSA_SN_SUPPORT
     MENU_ITEM_FUNCTION_P(_N("Fake serial number"), WorkaroundPrusaSN);////MSG_WORKAROUND_PRUSA_SN c=18
 #endif //PRUSA_SN_SUPPORT
+
     MENU_END();
 }
 
