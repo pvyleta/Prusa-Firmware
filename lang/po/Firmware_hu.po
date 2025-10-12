@@ -465,6 +465,18 @@ msgstr "Kesz"
 msgid "E-correct"
 msgstr "E-korrekcio"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritmus"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Alapért."
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Áll.nyom"
+
 #. MSG_CUSTOM_STEPPERS c=15
 msgid "Custom steppers"
 msgstr "Egyedi motorok"

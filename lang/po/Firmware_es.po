@@ -464,6 +464,18 @@ msgstr "Listo"
 msgid "E-correct"
 msgstr "Corregir-E"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritmo"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Predet."
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Par cst."
+
 #. MSG_CUSTOM_STEPPERS c=15
 msgid "Custom steppers"
 msgstr "Motores person."
