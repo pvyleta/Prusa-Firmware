@@ -467,6 +467,18 @@ msgstr "Gotowe"
 msgid "E-correct"
 msgstr "Korekcja-E"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algorytm"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Domyśl."
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Stł.mom."
+
 #. MSG_CUSTOM_STEPPERS c=15
 msgid "Custom steppers"
 msgstr "Własne silniki"

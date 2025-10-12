@@ -467,6 +467,18 @@ msgstr "Klaar"
 msgid "E-correct"
 msgstr "E-correctie"
 
+#. MSG_WAVE_ALGORITHM c=9
+msgid "Algorithm"
+msgstr "Algoritme"
+
+#. MSG_ALGORITHM_DEFAULT c=7
+msgid "Default"
+msgstr "Standaard"
+
+#. MSG_ALGORITHM_CONST_TQ c=8
+msgid "Const tq"
+msgstr "Cst.kopp"
+
 #. MSG_CUSTOM_STEPPERS c=15
 msgid "Custom steppers"
 msgstr "Aangep. motoren"

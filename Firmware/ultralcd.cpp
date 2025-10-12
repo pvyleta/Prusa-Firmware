@@ -102,6 +102,7 @@ static void lcd_settings_menu();
 static void lcd_control_temperature_menu();
 #ifdef TMC2130
 static void lcd_settings_linearity_correction_menu_save();
+static void lcd_tmc2130_wave_algorithm_toggle();
 #endif
 static void lcd_menu_xyz_y_min();
 static void lcd_menu_xyz_skew();
@@ -2698,12 +2699,12 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
         eeprom_write_block_notify(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
     );
-	MENU_ITEM_BACK_P(_N("Custom steppers"));
+	MENU_ITEM_BACK_P(_T(MSG_CUSTOM_STEPPERS));
     // See https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2130_datasheet_rev1.16.pdf
-    MENU_ITEM_EDIT_int3_P(_N("toff"), &_md->toff, 0, 15);
-    MENU_ITEM_EDIT_int3_P(_N("hstr"), &_md->hstr, 0, 8);
-    MENU_ITEM_EDIT_int3_P(_N("hend"), &_md->hend, 0, 15);
-    MENU_ITEM_EDIT_int3_P(_N("tbl"), &_md->tbl, 0, 3);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_TOFF), &_md->toff, 0, 15);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_HSTR), &_md->hstr, 0, 8);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_HEND), &_md->hend, 0, 15);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_TBL), &_md->tbl, 0, 3);
 	MENU_END();
 }
 
@@ -2762,10 +2763,10 @@ void lcd_custom_steppers()
         MENU_ITEM_TOGGLE_P(stepper_axis[axis], stepper_type_to_str(cs.stepper_type[axis]), stepper_func[axis]);
     }
 
-	MENU_ITEM_SUBMENU_P(_N("X chopper cfg"), lcd_x_chopper_config_set);
-	MENU_ITEM_SUBMENU_P(_N("Y chopper cfg"), lcd_y_chopper_config_set);
-	MENU_ITEM_SUBMENU_P(_N("Z chopper cfg"), lcd_z_chopper_config_set);
-	MENU_ITEM_SUBMENU_P(_N("E chopper cfg"), lcd_e_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_T(MSG_X_CHOPPER_CFG), lcd_x_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_T(MSG_Y_CHOPPER_CFG), lcd_y_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_T(MSG_Z_CHOPPER_CFG), lcd_z_chopper_config_set);
+	MENU_ITEM_SUBMENU_P(_T(MSG_E_CHOPPER_CFG), lcd_e_chopper_config_set);
 
 	MENU_END();
 }
@@ -4205,12 +4206,23 @@ void lcd_settings_linearity_correction_menu(void)
         lcd_settings_linearity_correction_menu_save();
     );
 	MENU_ITEM_BACK_P(_T(MSG_SETTINGS));
+
+	// Algorithm selection toggle (read from EEPROM to support runtime changes)
+	uint8_t current_algorithm = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM);
+
+	if (current_algorithm == TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE) {
+		MENU_ITEM_TOGGLE_P(_T(MSG_WAVE_ALGORITHM), _T(MSG_ALGORITHM_CONST_TQ), lcd_tmc2130_wave_algorithm_toggle);
+	} else {
+		MENU_ITEM_TOGGLE_P(_T(MSG_WAVE_ALGORITHM), _T(MSG_ALGORITHM_DEFAULT), lcd_tmc2130_wave_algorithm_toggle);
+	}
+
+	// Unified parameter range (0-200 maps to power factors 1.0-1.2 for both algorithms)
 #ifdef TMC2130_LINEARITY_CORRECTION_XYZ
-	MENU_ITEM_EDIT_int3_P(_T(MSG_X_CORRECTION), &tmc2130_wave_fac[X_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
-	MENU_ITEM_EDIT_int3_P(_T(MSG_Y_CORRECTION), &tmc2130_wave_fac[Y_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
-	MENU_ITEM_EDIT_int3_P(_T(MSG_Z_CORRECTION), &tmc2130_wave_fac[Z_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_X_CORRECTION), &tmc2130_wave_fac[X_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_Y_CORRECTION), &tmc2130_wave_fac[Y_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_Z_CORRECTION), &tmc2130_wave_fac[Z_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
 #endif //TMC2130_LINEARITY_CORRECTION_XYZ
-	MENU_ITEM_EDIT_int3_P(_T(MSG_EXTRUDER_CORRECTION), &tmc2130_wave_fac[E_AXIS], TMC2130_WAVE_FAC1000_MIN-TMC2130_WAVE_FAC1000_STP, TMC2130_WAVE_FAC1000_MAX);
+	MENU_ITEM_EDIT_int3_P(_T(MSG_EXTRUDER_CORRECTION), &tmc2130_wave_fac[E_AXIS], TMC2130_WAVE_FAC1000_MIN, TMC2130_WAVE_FAC1000_MAX);
 	MENU_END();
 }
 #endif // TMC2130
@@ -4596,7 +4608,7 @@ void lcd_hw_setup_menu(void)                      // can not be "static"
 #endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_IR_ANALOG)
 
 #ifdef TMC2130
-    MENU_ITEM_SUBMENU_P(_N("Custom steppers"), lcd_custom_steppers);
+    MENU_ITEM_SUBMENU_P(_T(MSG_CUSTOM_STEPPERS), lcd_custom_steppers);
 #endif
 
     if (_md->experimental_menu_visibility)
@@ -4709,6 +4721,24 @@ static void lcd_settings_menu()
 }
 
 #ifdef TMC2130
+// Toggle between Default and Constant Torque algorithms
+static void lcd_tmc2130_wave_algorithm_toggle() {
+    // Read current algorithm from EEPROM
+    uint8_t current_algorithm = eeprom_read_byte((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM);
+
+    // Toggle to the other algorithm
+    uint8_t new_algorithm = (current_algorithm == TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE) ?
+                           TMC2130_WAVE_ALGORITHM_DEFAULT : TMC2130_WAVE_ALGORITHM_CONSTANT_TORQUE;
+
+    // Save new algorithm to EEPROM
+    eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_WAVE_ALGORITHM, new_algorithm);
+
+    // Immediately reapply wave settings on all axes to enable runtime changes
+    for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        tmc2130_set_wave(axis, 247, tmc2130_wave_fac[axis]);
+    }
+}
+
 static void lcd_settings_linearity_correction_menu_save() {
     for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
 
