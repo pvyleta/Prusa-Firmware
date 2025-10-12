@@ -466,6 +466,51 @@ msgstr "Klar"
 msgid "E-correct"
 msgstr "E-Korrektur"
 
+#. MSG_CUSTOM_STEPPERS c=18
+#: ../../Firmware/messages.cpp:324 ../../Firmware/ultralcd.cpp:2702
+msgid "Custom steppers"
+msgstr "Eigene Schrittmot."
+
+#. MSG_TOFF c=13
+#: ../../Firmware/messages.cpp:325 ../../Firmware/ultralcd.cpp:2704
+msgid "toff"
+msgstr "toff"
+
+#. MSG_HSTR c=13
+#: ../../Firmware/messages.cpp:326 ../../Firmware/ultralcd.cpp:2705
+msgid "hstr"
+msgstr "hstr"
+
+#. MSG_HEND c=13
+#: ../../Firmware/messages.cpp:327 ../../Firmware/ultralcd.cpp:2706
+msgid "hend"
+msgstr "hend"
+
+#. MSG_TBL c=13
+#: ../../Firmware/messages.cpp:328 ../../Firmware/ultralcd.cpp:2707
+msgid "tbl"
+msgstr "tbl"
+
+#. MSG_X_CHOPPER_CFG c=18
+#: ../../Firmware/messages.cpp:329 ../../Firmware/ultralcd.cpp:2766
+msgid "X chopper cfg"
+msgstr "X Chopper Konf."
+
+#. MSG_Y_CHOPPER_CFG c=18
+#: ../../Firmware/messages.cpp:330 ../../Firmware/ultralcd.cpp:2767
+msgid "Y chopper cfg"
+msgstr "Y Chopper Konf."
+
+#. MSG_Z_CHOPPER_CFG c=18
+#: ../../Firmware/messages.cpp:331 ../../Firmware/ultralcd.cpp:2768
+msgid "Z chopper cfg"
+msgstr "Z Chopper Konf."
+
+#. MSG_E_CHOPPER_CFG c=18
+#: ../../Firmware/messages.cpp:332 ../../Firmware/ultralcd.cpp:2769
+msgid "E chopper cfg"
+msgstr "E Chopper Konf."
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48

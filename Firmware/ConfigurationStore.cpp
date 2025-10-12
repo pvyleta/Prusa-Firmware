@@ -22,6 +22,7 @@ void Config_PrintSettings(uint8_t level)
   printf_P(PSTR(
     "%SSteps per unit:\n%S  M92 X%.2f Y%.2f Z%.2f E%.2f\n"
         "%SUStep resolution: \n%S M350 X%d Y%d Z%d E%d\n"
+        "%SSteppers: \n%S X%d Y%d Z%d E%d\n"
 		"%SMaximum feedrates - normal (mm/s):\n%S  M203 X%.2f Y%.2f Z%.2f E%.2f\n"
 		"%SMaximum feedrates - stealth (mm/s):\n%S  M203 X%.2f Y%.2f Z%.2f E%.2f\n"
 		"%SMaximum acceleration - normal (mm/s2):\n%S  M201 X%lu Y%lu Z%lu E%lu\n"
@@ -32,6 +33,7 @@ void Config_PrintSettings(uint8_t level)
 		),
 		echomagic, echomagic, cs.axis_steps_per_mm[X_AXIS], cs.axis_steps_per_mm[Y_AXIS], cs.axis_steps_per_mm[Z_AXIS], cs.axis_steps_per_mm[E_AXIS],
 		echomagic, echomagic, cs.axis_ustep_resolution[X_AXIS], cs.axis_ustep_resolution[Y_AXIS], cs.axis_ustep_resolution[Z_AXIS], cs.axis_ustep_resolution[E_AXIS],
+		echomagic, echomagic, cs.stepper_type[X_AXIS], cs.stepper_type[Y_AXIS], cs.stepper_type[Z_AXIS], cs.stepper_type[E_AXIS],
 		echomagic, echomagic, cs.max_feedrate_normal[X_AXIS], cs.max_feedrate_normal[Y_AXIS], cs.max_feedrate_normal[Z_AXIS], cs.max_feedrate_normal[E_AXIS],
 		echomagic, echomagic, cs.max_feedrate_silent[X_AXIS], cs.max_feedrate_silent[Y_AXIS], cs.max_feedrate_silent[Z_AXIS], cs.max_feedrate_silent[E_AXIS],
 		echomagic, echomagic, cs.max_acceleration_mm_per_s2_normal[X_AXIS], cs.max_acceleration_mm_per_s2_normal[Y_AXIS], cs.max_acceleration_mm_per_s2_normal[Z_AXIS], cs.max_acceleration_mm_per_s2_normal[E_AXIS],
@@ -120,7 +122,7 @@ static_assert (NUM_AXIS == 4, "ConfigurationStore M500_conf not implemented for 
         "Fix axis_steps_per_mm max_feedrate_normal max_acceleration_mm_per_s2_normal max_jerk max_feedrate_silent"
         " max_acceleration_mm_per_s2_silent array size.");
 
-static_assert (sizeof(M500_conf) == 209, "sizeof(M500_conf) has changed, ensure that EEPROM_VERSION has been incremented, "
+static_assert (sizeof(M500_conf) == 213, "sizeof(M500_conf) has changed, ensure that EEPROM_VERSION has been incremented, "
         "or if you added members in the end of struct, ensure that historically uninitialized values will be initialized."
         "If this is caused by change to more then 8bit processor, decide whether make this struct packed to save EEPROM,"
         "leave as it is to keep fast code, or reorder struct members to pack more tightly.");
@@ -173,7 +175,8 @@ static const M500_conf default_conf PROGMEM =
     DEFAULT_MIN_MM_PER_ARC_SEGMENT,
     DEFAULT_N_ARC_CORRECTION,
     DEFAULT_MIN_ARC_SEGMENTS,
-    DEFAULT_ARC_SEGMENTS_PER_SEC
+    DEFAULT_ARC_SEGMENTS_PER_SEC,
+    {STEPPER_DEFAULT, STEPPER_DEFAULT, STEPPER_DEFAULT, STEPPER_DEFAULT},
 };
 
 
@@ -215,6 +218,7 @@ bool Config_RetrieveSettings()
 
 #ifdef TMC2130
         eeprom_init_default_block(&EEPROM_M500_base->axis_ustep_resolution, sizeof(EEPROM_M500_base->axis_ustep_resolution), default_conf.axis_ustep_resolution);
+        eeprom_init_default_block(&EEPROM_M500_base->stepper_type, sizeof(EEPROM_M500_base->stepper_type), default_conf.stepper_type);
 #endif // TMC2130
 
         // load the CS to RAM

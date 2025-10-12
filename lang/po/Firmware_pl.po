@@ -467,6 +467,42 @@ msgstr "Gotowe"
 msgid "E-correct"
 msgstr "Korekcja-E"
 
+#. MSG_CUSTOM_STEPPERS c=15
+msgid "Custom steppers"
+msgstr "Własne silniki"
+
+#. MSG_TOFF c=4
+msgid "toff"
+msgstr "toff"
+
+#. MSG_HSTR c=4
+msgid "hstr"
+msgstr "hstr"
+
+#. MSG_HEND c=4
+msgid "hend"
+msgstr "hend"
+
+#. MSG_TBL c=3
+msgid "tbl"
+msgstr "tbl"
+
+#. MSG_X_CHOPPER_CFG c=13
+msgid "X chopper cfg"
+msgstr "Konf. chop. X"
+
+#. MSG_Y_CHOPPER_CFG c=13
+msgid "Y chopper cfg"
+msgstr "Konf. chop. Y"
+
+#. MSG_Z_CHOPPER_CFG c=13
+msgid "Z chopper cfg"
+msgstr "Konf. chop. Z"
+
+#. MSG_E_CHOPPER_CFG c=13
+msgid "E chopper cfg"
+msgstr "Konf. chop. E"
+
 #. MSG_PROGRESS_ERR_HELP_FIL c=20
 #: ../../Firmware/mmu2_progress_converter.cpp:19
 #: ../../Firmware/mmu2_progress_converter.cpp:48
