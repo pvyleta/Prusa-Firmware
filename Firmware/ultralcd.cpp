@@ -2625,7 +2625,6 @@ static void _lcd_stepper_set(AxisEnum axis) {
     }
 
     pwmconf_load_settings(axis);
-    sg_thr_load_settings(axis);
 
     tmc2130_mres[axis] = tmc2130_usteps2mres(cs.axis_ustep_resolution[axis]);
     tmc2130_setup_chopper(axis, tmc2130_mres[axis]);

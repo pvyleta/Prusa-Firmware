@@ -76,13 +76,6 @@
 #define TMC2130_HEND_XYZE_0_9 0
 #define TMC2130_TBL_XYZE_0_9  2
 
-#define TMC2130_SG_THRS_X_0_9 4
-#define TMC2130_SG_THRS_Y_0_9 5 // Increased from 4 for OMC with 9mm belt
-#define TMC2130_SG_THRS_Z_0_9 4
-#define TMC2130_SG_THRS_E_0_9 3
-
-#define TMC2130_SG_THRS_HOME_0_9 {4, 4, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E}
-
 #define HOMING_CNT_MIN_0_9 10  // 0.9 motors often home at much lower count
 
 /*------------------------------------
@@ -315,7 +308,7 @@
 #define TMC2130_THIGH     0         // THIGH - unused
 
 // Define coolStep threshold speeds in mm/s
-// coolStep becomes active when the stepper speed drops below this threshold
+// coolStep (crash detection) becomes active when the stepper speed increases above this threshold
 #define TMC2130_TCOOLTHRS_X_SPEED 17  // X axis coolStep threshold in mm/s
 #define TMC2130_TCOOLTHRS_Y_SPEED 17  // Y axis coolStep threshold in mm/s
 #define TMC2130_TCOOLTHRS_Z_SPEED 4   // Z axis coolStep threshold in mm/s

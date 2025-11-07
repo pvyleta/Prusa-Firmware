@@ -139,13 +139,8 @@ static constexpr PWMConfU pwmconf_Ecool = PWMConfU(PWMCONF_REG(TMC2130_PWM_AMPL_
 
 uint8_t tmc2130_mres[4] = {0, 0, 0, 0}; //will be filed at begin of init
 
-static constexpr uint8_t tmc2130_sg_thr_0_9[4] = {TMC2130_SG_THRS_X_0_9, TMC2130_SG_THRS_Y_0_9, TMC2130_SG_THRS_Z_0_9, TMC2130_SG_THRS_E_0_9};
-static constexpr uint8_t tmc2130_sg_thr_1_8[4] = {TMC2130_SG_THRS_X, TMC2130_SG_THRS_Y, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E};
-static constexpr uint8_t tmc2130_sg_thr_home_0_9[4] = TMC2130_SG_THRS_HOME_0_9; 
-static constexpr uint8_t tmc2130_sg_thr_home_1_8[4] = TMC2130_SG_THRS_HOME;
-
 uint8_t tmc2130_sg_thr[4] = {TMC2130_SG_THRS_X, TMC2130_SG_THRS_Y, TMC2130_SG_THRS_Z, TMC2130_SG_THRS_E};
-uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME;
+static uint8_t tmc2130_sg_thr_home[4] = TMC2130_SG_THRS_HOME;
 
 
 uint8_t tmc2130_sg_homing_axes_mask = 0x00;
@@ -313,20 +308,6 @@ void pwmconf_load_settings(uint8_t axis)
 	// Ensure immediate write in case this function is called as menu item change 
 	tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
 };
-
-// Set Stallguard Threshold based on stepper_type
-void sg_thr_load_settings(uint8_t axis) {
-	if (cs.stepper_type[axis] != STEPPER_DEFAULT) {
-		tmc2130_sg_thr[axis] = tmc2130_sg_thr_0_9[axis];
-		tmc2130_sg_thr_home[axis] = tmc2130_sg_thr_home_0_9[axis];
-	} else {
-		tmc2130_sg_thr[axis] = tmc2130_sg_thr_1_8[axis];
-		tmc2130_sg_thr_home[axis] = tmc2130_sg_thr_home_1_8[axis];
-	}
-	
-	// Ensure immediate write in case this function is called as menu item change
-	tmc2130_wr_COOLCONF(axis);
-}
 
 // Convert velocity in mm/s to TCOOLTHRS register value
 uint16_t __tcoolthrs(uint8_t axis)
@@ -686,13 +667,6 @@ void tmc2130_set_pwm_grad(uint8_t axis, uint8_t pwm_grad)
     pwmconf[axis].s.pwm_grad = pwm_grad;
     if (((axis == X_AXIS) || (axis == Y_AXIS)) && (tmc2130_mode == TMC2130_MODE_SILENT))
         tmc2130_wr(axis, TMC2130_REG_PWMCONF, pwmconf[axis].dw);
-}
-
-static void tmc2130_wr_COOLCONF(uint8_t axis)
-{
-	uint32_t coolconf = ((uint32_t)tmc2130_sg_thr[axis]) << 16;
-	coolconf |= (axis == E_AXIS) ? 0 : ((uint32_t)1 << 24);
-	tmc2130_wr(axis, TMC2130_REG_COOLCONF, coolconf);
 }
 
 uint16_t tmc2130_rd_TSTEP(uint8_t axis)

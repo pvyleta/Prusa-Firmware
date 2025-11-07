@@ -11,12 +11,9 @@ extern uint8_t tmc2130_mres[4];
 
 //flags for axis stall detection
 extern uint8_t tmc2130_sg_thr[4];
-extern uint8_t tmc2130_sg_thr_home[4];
-
 	
 extern void chopper_config_eeprom_load_settings();
 extern void pwmconf_load_settings(uint8_t axis);
-extern void sg_thr_load_settings(uint8_t axis);				   
 
 extern bool tmc2130_sg_stop_on_crash;
 extern uint8_t tmc2130_sg_crash; //crash mask

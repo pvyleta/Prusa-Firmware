@@ -1329,7 +1329,6 @@ void setup()
   
   for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
     pwmconf_load_settings(axis);
-    sg_thr_load_settings(axis);
   }
 
 #endif //TMC2130
@@ -7789,24 +7788,6 @@ void process_commands()
     break;
 
 #endif //TMC2130_SERVICE_CODES_M910_M918
-
-    /*!
-    ### M925 - Set sg_thrs_home
-    #### Usage
-
-        M924 [ X | Y | Z | E ]
-        
-    */
-    case 924:
-    {
-      for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
-        if (code_seen(axis_codes[axis])) {
-            tmc2130_sg_thr_home[axis] = code_value();
-            printf_P(_N("tmc2130_sg_thr_home[%c]=%d\n"), "XYZE"[axis], tmc2130_sg_thr_home[axis]);
-        }
-      }
-    }
-    break;
 
     /*!
     ### M925 - Set homing feed rate
