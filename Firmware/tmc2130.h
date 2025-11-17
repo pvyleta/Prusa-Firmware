@@ -13,6 +13,8 @@ extern uint8_t tmc2130_mres[4];
 extern uint8_t tmc2130_sg_thr[4];
 	
 extern void chopper_config_eeprom_load_settings();
+extern void motor_currents_eeprom_load_settings();
+extern void motor_currents_eeprom_save_settings(uint8_t axis);
 extern void pwmconf_load_settings(uint8_t axis);
 
 extern bool tmc2130_sg_stop_on_crash;

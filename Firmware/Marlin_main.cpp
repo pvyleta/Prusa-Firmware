@@ -1325,8 +1325,9 @@ void setup()
 #endif //TMC2130_VARIABLE_RESOLUTION
 
   chopper_config_eeprom_load_settings();
+  motor_currents_eeprom_load_settings();
   homing_feedrate_load_settings();
-  
+
   for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
     pwmconf_load_settings(axis);
   }

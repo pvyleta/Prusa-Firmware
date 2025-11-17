@@ -292,6 +292,42 @@ void chopper_config_eeprom_load_settings()
 	}
 }
 
+void motor_currents_eeprom_load_settings()
+{
+	// Load motor currents from EEPROM if initialized
+	// Each axis has 2 bytes: iRun and iHold
+	typedef struct {
+		uint8_t irun;
+		uint8_t ihold;
+	} motor_currents_eeprom_t;
+
+	for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+		motor_currents_eeprom_t* const eeprom_currents = &((motor_currents_eeprom_t*)EEPROM_TMC2130_IRUN_IHOLD)[axis];
+
+		if (eeprom_is_initialized_block(eeprom_currents, sizeof(motor_currents_eeprom_t)))
+		{
+			uint8_t irun = eeprom_read_byte(&eeprom_currents->irun);
+			uint8_t ihold = eeprom_read_byte(&eeprom_currents->ihold);
+			currents[axis].setiRun(irun);
+			currents[axis].setiHold(ihold);
+		}
+	}
+}
+
+void motor_currents_eeprom_save_settings(uint8_t axis)
+{
+	// Save motor currents for a specific axis to EEPROM
+	typedef struct {
+		uint8_t irun;
+		uint8_t ihold;
+	} motor_currents_eeprom_t;
+
+	motor_currents_eeprom_t* const eeprom_currents = &((motor_currents_eeprom_t*)EEPROM_TMC2130_IRUN_IHOLD)[axis];
+
+	eeprom_update_byte_notify(&eeprom_currents->irun, currents[axis].getOriginaliRun());
+	eeprom_update_byte_notify(&eeprom_currents->ihold, currents[axis].getOriginaliHold());
+}
+
 // Set PWM based on stepper_type
 void pwmconf_load_settings(uint8_t axis)
 {

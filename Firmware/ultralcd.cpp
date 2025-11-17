@@ -2653,14 +2653,16 @@ void lcd_e_stepper_set()
 #endif // TMC2130
 
 typedef struct
-{	// 12bytes + 5bytes = 17bytes total
-    menu_data_edit_t reserved; //12 bytes reserved for number editing functions
+{	// 13bytes + 7bytes = 20bytes total
+    menu_data_edit_t reserved; //13 bytes reserved for number editing functions
 	uint8_t status;            // 1byte
 	uint8_t toff;              // 1byte
 	uint8_t hstr;              // 1byte
 	uint8_t hend;              // 1byte
 	uint8_t tbl;               // 1byte
-} _menu_data_chopper_config_t;
+	uint8_t irun;              // 1byte
+	uint8_t ihold;             // 1byte
+} __attribute__((packed)) _menu_data_chopper_config_t;
 static_assert(sizeof(menu_data)>= sizeof(_menu_data_chopper_config_t),"_menu_data_chopper_config_t doesn't fit into menu_data");
 
 void _lcd_chopper_config_set(AxisEnum axis) {
@@ -2674,6 +2676,8 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         _md->hstr = tmc2130_chopper_config[axis].hstr;
         _md->hend = tmc2130_chopper_config[axis].hend;
         _md->tbl = tmc2130_chopper_config[axis].tbl;
+        _md->irun = currents[axis].getiRun();
+        _md->ihold = currents[axis].getiHold();
     }
 
     MENU_BEGIN();
@@ -2682,8 +2686,11 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         tmc2130_chopper_config[axis].hstr = _md->hstr & 7;
         tmc2130_chopper_config[axis].hend = _md->hend & 15;
         tmc2130_chopper_config[axis].tbl = _md->tbl & 3;
+        currents[axis].setiRun(_md->irun);
+        currents[axis].setiHold(_md->ihold);
         tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
         eeprom_write_block_notify(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
+        motor_currents_eeprom_save_settings(axis);
     );
 	MENU_ITEM_BACK_P(_T(MSG_CUSTOM_STEPPERS));
     // See https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2130_datasheet_rev1.16.pdf
@@ -2691,6 +2698,8 @@ void _lcd_chopper_config_set(AxisEnum axis) {
     MENU_ITEM_EDIT_int3_P(_T(MSG_HSTR), &_md->hstr, 0, 8);
     MENU_ITEM_EDIT_int3_P(_T(MSG_HEND), &_md->hend, 0, 15);
     MENU_ITEM_EDIT_int3_P(_T(MSG_TBL), &_md->tbl, 0, 3);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_IRUN), &_md->irun, 0, 63);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_IHOLD), &_md->ihold, 0, 63);
 	MENU_END();
 }
 
@@ -5717,6 +5726,12 @@ static void lcd_tune_menu()
     }
 
     SETTINGS_FANS_CHECK();
+#ifdef TMC2130
+    MENU_ITEM_SUBMENU_P(_T(MSG_CUSTOM_STEPPERS), lcd_custom_steppers);
+#endif //TMC2130
+#if defined (TMC2130) && defined (LINEARITY_CORRECTION)
+    MENU_ITEM_SUBMENU_P(_T(MSG_LIN_CORRECTION), lcd_settings_linearity_correction_menu);
+#endif //LINEARITY_CORRECTION && TMC2130
     SETTINGS_SILENT_MODE();
     SETTINGS_SOUND;
 #ifdef LCD_BL_PIN
