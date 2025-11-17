@@ -60,10 +60,10 @@
 // TMC2130_PWM_GRAD_Y 4 is reasonable choice on Y. 
 // Raised TMC2130_PWM_AMPL_[xyze] by 5 to prevent skipping as the 0.9 steppers are slightly weaker than stock
 
-#define TMC2130_PWM_GRAD_X_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_Y_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_Z_0_9  4   // PWM_GRAD
-#define TMC2130_PWM_GRAD_E_0_9  4   // PWM_GRAD
+#define TMC2130_PWM_GRAD_X_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_Y_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_Z_0_9  3   // PWM_GRAD
+#define TMC2130_PWM_GRAD_E_0_9  3   // PWM_GRAD
 
 #define TMC2130_PWM_AMPL_X_0_9  235 // PWMCONF   
 #define TMC2130_PWM_AMPL_Y_0_9  240 // PWMCONF
