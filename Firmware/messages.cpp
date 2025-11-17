@@ -325,6 +325,7 @@ extern const char MSG_TOFF [] PROGMEM_I1 = ISTR("toff"); ////MSG_TOFF c=13
 extern const char MSG_HSTR [] PROGMEM_I1 = ISTR("hstr"); ////MSG_HSTR c=13
 extern const char MSG_HEND [] PROGMEM_I1 = ISTR("hend"); ////MSG_HEND c=13
 extern const char MSG_TBL [] PROGMEM_I1 = ISTR("tbl"); ////MSG_TBL c=13
+extern const char MSG_SYNC [] PROGMEM_I1 = ISTR("sync"); ////MSG_SYNC c=13
 extern const char MSG_IRUN [] PROGMEM_I1 = ISTR("iRun"); ////MSG_IRUN c=13
 extern const char MSG_IHOLD [] PROGMEM_I1 = ISTR("iHold"); ////MSG_IHOLD c=13
 extern const char MSG_X_CHOPPER_CFG [] PROGMEM_I1 = ISTR("X chopper cfg"); ////MSG_X_CHOPPER_CFG c=18

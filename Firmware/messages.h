@@ -324,6 +324,7 @@ extern const char MSG_TOFF [];
 extern const char MSG_HSTR [];
 extern const char MSG_HEND [];
 extern const char MSG_TBL [];
+extern const char MSG_SYNC [];
 extern const char MSG_IRUN [];
 extern const char MSG_IHOLD [];
 extern const char MSG_X_CHOPPER_CFG [];

@@ -62,7 +62,7 @@ typedef struct
 	uint8_t hstr:3;
 	uint8_t hend:4;
 	uint8_t tbl:2;
-	uint8_t res:3;
+	uint8_t sync:3;  // PWM synchronization (0-7), maps to CHOPCONF SYNC bits [23:20]
 } tmc2130_chopper_config_t;
 #pragma pack(pop)
 
@@ -73,7 +73,7 @@ static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_1_8 =
     .hstr = 5,
     .hend = 1,
     .tbl = 2,
-    .res = 0
+    .sync = 0
 };
 
 static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_1_8_cnstoff =
@@ -82,16 +82,16 @@ static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_1_8_cnstoff =
     .hstr = 0,
     .hend = 0,
     .tbl = 2,
-    .res = 0
+    .sync = 0
 };
 
-static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_0_9 = 
+static constexpr tmc2130_chopper_config_t tmc2130_chopper_config_0_9 =
 {
 	.toff = TMC2130_TOFF_XYZE_0_9,
 	.hstr = TMC2130_HSTR_XYZE_0_9,
 	.hend = TMC2130_HEND_XYZE_0_9,
 	.tbl = TMC2130_TBL_XYZE_0_9,
-	.res = 0
+	.sync = 0
 };
 
 extern tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS];

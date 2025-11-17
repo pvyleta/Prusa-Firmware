@@ -2653,13 +2653,14 @@ void lcd_e_stepper_set()
 #endif // TMC2130
 
 typedef struct
-{	// 13bytes + 7bytes = 20bytes total
+{	// 13bytes + 8bytes = 21bytes total
     menu_data_edit_t reserved; //13 bytes reserved for number editing functions
 	uint8_t status;            // 1byte
 	uint8_t toff;              // 1byte
 	uint8_t hstr;              // 1byte
 	uint8_t hend;              // 1byte
 	uint8_t tbl;               // 1byte
+	uint8_t sync;              // 1byte
 	uint8_t irun;              // 1byte
 	uint8_t ihold;             // 1byte
 } __attribute__((packed)) _menu_data_chopper_config_t;
@@ -2676,6 +2677,7 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         _md->hstr = tmc2130_chopper_config[axis].hstr;
         _md->hend = tmc2130_chopper_config[axis].hend;
         _md->tbl = tmc2130_chopper_config[axis].tbl;
+        _md->sync = tmc2130_chopper_config[axis].sync;
         _md->irun = currents[axis].getiRun();
         _md->ihold = currents[axis].getiHold();
     }
@@ -2686,6 +2688,7 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         tmc2130_chopper_config[axis].hstr = _md->hstr & 7;
         tmc2130_chopper_config[axis].hend = _md->hend & 15;
         tmc2130_chopper_config[axis].tbl = _md->tbl & 3;
+        tmc2130_chopper_config[axis].sync = _md->sync & 7;
         currents[axis].setiRun(_md->irun);
         currents[axis].setiHold(_md->ihold);
         tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
@@ -2695,11 +2698,12 @@ void _lcd_chopper_config_set(AxisEnum axis) {
 	MENU_ITEM_BACK_P(_T(MSG_CUSTOM_STEPPERS));
     // See https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2130_datasheet_rev1.16.pdf
     MENU_ITEM_EDIT_int3_P(_T(MSG_TOFF), &_md->toff, 0, 15);
-    MENU_ITEM_EDIT_int3_P(_T(MSG_HSTR), &_md->hstr, 0, 8);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_HSTR), &_md->hstr, 0, 7);
     MENU_ITEM_EDIT_int3_P(_T(MSG_HEND), &_md->hend, 0, 15);
     MENU_ITEM_EDIT_int3_P(_T(MSG_TBL), &_md->tbl, 0, 3);
-    MENU_ITEM_EDIT_int3_P(_T(MSG_IRUN), &_md->irun, 0, 63);
-    MENU_ITEM_EDIT_int3_P(_T(MSG_IHOLD), &_md->ihold, 0, 63);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_SYNC), &_md->sync, 0, 7);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_IRUN), &_md->irun, 0, 31);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_IHOLD), &_md->ihold, 0, 31);
 	MENU_END();
 }
 

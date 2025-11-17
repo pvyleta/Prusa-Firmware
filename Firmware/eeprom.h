@@ -670,7 +670,7 @@ static Sheets * const EEPROM_Sheets_base = (Sheets*)(EEPROM_SHEETS_BASE);
 #define EEPROM_CHECK_FILAMENT (EEPROM_UVLO_MAX_JERK-1) // uint8_t
 
 // TMC2130 chopper config
-#define EEPROM_TMC2130_CHOPPER_CONFIG (EEPROM_CHECK_FILAMENT - 8) //4 x uint16_t
+#define EEPROM_TMC2130_CHOPPER_CONFIG (EEPROM_CHECK_FILAMENT - 8) //4 x uint16_t (toff, hstr, hend, tbl, sync)
 
 // TMC2130 Wave Algorithm Selection (added after chopper config)
 #define EEPROM_TMC2130_WAVE_ALGORITHM (EEPROM_TMC2130_CHOPPER_CONFIG - 1) // uint8

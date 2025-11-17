@@ -164,21 +164,21 @@ tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 		.hstr = 5,
 		.hend = 1,
 		.tbl = 2,
-		.res = 0
+		.sync = 0
 	},
 	{ // Y axis
 		.toff = TMC2130_TOFF_XYZ,
 		.hstr = 5,
 		.hend = 1,
 		.tbl = 2,
-		.res = 0
+		.sync = 0
 	},
 	{ // Z axis
 		.toff = TMC2130_TOFF_XYZ,
 		.hstr = 5,
 		.hend = 1,
 		.tbl = 2,
-		.res = 0
+		.sync = 0
 	},
 #ifdef TMC2130_CNSTOFF_E
 	{ // E axis
@@ -186,7 +186,7 @@ tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 		.hstr = 0,
 		.hend = 0,
 		.tbl = 2,
-		.res = 0
+		.sync = 0
 	}
 #else // !TMC2130_CNSTOFF_E
 	{ // E axis
@@ -194,7 +194,7 @@ tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS] = {
 		.hstr = 5,
 		.hend = 1,
 		.tbl = 2,
-		.res = 0
+		.sync = 0
 	}
 #endif
 };
@@ -673,6 +673,7 @@ void tmc2130_setup_chopper(uint8_t axis, uint8_t mres, const MotorCurrents *curr
 	chopconf.s.hstrt = tmc2130_chopper_config[axis].hstr; // initial 4, modified to 5
 	chopconf.s.hend = tmc2130_chopper_config[axis].hend; // original value = 1
 	chopconf.s.tbl = tmc2130_chopper_config[axis].tbl; //blanking time, original value = 2
+	chopconf.s.sync = tmc2130_chopper_config[axis].sync; // PWM synchronization clock
 
 	tmc2130_wr(axis, TMC2130_REG_CHOPCONF, chopconf.dw);
 	if (curr == nullptr) {
