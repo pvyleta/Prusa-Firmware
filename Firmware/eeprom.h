@@ -678,8 +678,11 @@ static Sheets * const EEPROM_Sheets_base = (Sheets*)(EEPROM_SHEETS_BASE);
 // TMC2130 motor currents (run and hold currents for all axes)
 #define EEPROM_TMC2130_IRUN_IHOLD (EEPROM_TMC2130_WAVE_ALGORITHM - 8) // 4 x (uint8_t iRun + uint8_t iHold)
 
+// Homing feedrates
+#define EEPROM_HOMING_FEEDRATE (EEPROM_TMC2130_IRUN_IHOLD - 8) //4 x 2 bytes (uint16_t)
+
 //This is supposed to point to last item to allow EEPROM overrun check. Please update when adding new items.
-#define EEPROM_LAST_ITEM EEPROM_TMC2130_IRUN_IHOLD
+#define EEPROM_LAST_ITEM EEPROM_HOMING_FEEDRATE
 // !!!!!
 // !!!!! this is end of EEPROM section ... all updates MUST BE inserted before this mark !!!!!
 // !!!!!

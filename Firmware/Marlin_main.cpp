@@ -1037,24 +1037,26 @@ static void xflash_err_msg()
     lcd_show_fullscreen_message_and_wait_P(_n("External SPI flash\nXFLASH is not res-\nponding. Language\nswitch unavailable."));
 }
 
-static void homing_feedrate_load_settings()
+void homing_feedrate_eeprom_load_settings()
 {
-  for (uint8_t axis = 0; axis < Z_AXIS; axis++) {
-    switch (cs.stepper_type[axis])
-    {
-      //CLX measurements suggest OMC at 2500 and Moons at 2400
-      case STEPPER_0_9_MOONS:
-        homing_feedrate[axis] = 2400;
-        break;
-      case STEPPER_0_9_OMC:
-        homing_feedrate[axis] = 2500;
-        break;
-      case STEPPER_DEFAULT:
-      default:
-        homing_feedrate[axis] = 3000;
-        break;
+    // Load homing feedrates from EEPROM if initialized
+    // Each axis has 2 bytes (uint16_t)
+    for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
+        uint16_t* const eeprom_feedrate = &((uint16_t*)EEPROM_HOMING_FEEDRATE)[axis];
+
+        if (eeprom_is_initialized_block(eeprom_feedrate, sizeof(uint16_t)))
+        {
+            homing_feedrate[axis] = (float)eeprom_read_word(eeprom_feedrate);
+        }
     }
-  }
+}
+
+void homing_feedrate_eeprom_save_settings(uint8_t axis)
+{
+    // Save homing feedrate for a specific axis to EEPROM
+    // Store as uint16_t to save space
+    uint16_t* const eeprom_feedrate = &((uint16_t*)EEPROM_HOMING_FEEDRATE)[axis];
+    eeprom_update_word_notify(eeprom_feedrate, (uint16_t)homing_feedrate[axis]);
 }
 
 // "Setup" function is called by the Arduino framework on startup.
@@ -1326,7 +1328,7 @@ void setup()
 
   chopper_config_eeprom_load_settings();
   motor_currents_eeprom_load_settings();
-  homing_feedrate_load_settings();
+  homing_feedrate_eeprom_load_settings();
 
   for (uint8_t axis = 0; axis < NUM_AXIS; axis++) {
     pwmconf_load_settings(axis);

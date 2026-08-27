@@ -2653,7 +2653,7 @@ void lcd_e_stepper_set()
 #endif // TMC2130
 
 typedef struct
-{	// 13bytes + 8bytes = 21bytes total
+{	// 13bytes + 8bytes + 2bytes = 23bytes total
     menu_data_edit_t reserved; //13 bytes reserved for number editing functions
 	uint8_t status;            // 1byte
 	uint8_t toff;              // 1byte
@@ -2663,6 +2663,7 @@ typedef struct
 	uint8_t sync;              // 1byte
 	uint8_t irun;              // 1byte
 	uint8_t ihold;             // 1byte
+	uint16_t homing_feedrate;  // 2bytes - stored in increments of 100 mm/min
 } __attribute__((packed)) _menu_data_chopper_config_t;
 static_assert(sizeof(menu_data)>= sizeof(_menu_data_chopper_config_t),"_menu_data_chopper_config_t doesn't fit into menu_data");
 
@@ -2680,6 +2681,7 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         _md->sync = tmc2130_chopper_config[axis].sync;
         _md->irun = currents[axis].getiRun();
         _md->ihold = currents[axis].getiHold();
+        _md->homing_feedrate = (uint16_t)(homing_feedrate[axis] / 60.0f); // Convert from mm/min to mm/s
     }
 
     MENU_BEGIN();
@@ -2691,9 +2693,11 @@ void _lcd_chopper_config_set(AxisEnum axis) {
         tmc2130_chopper_config[axis].sync = _md->sync & 7;
         currents[axis].setiRun(_md->irun);
         currents[axis].setiHold(_md->ihold);
+        homing_feedrate[axis] = _md->homing_feedrate * 60.0f; // Convert from mm/s to mm/min
         tmc2130_setup_chopper(axis, tmc2130_mres[axis]);
         eeprom_write_block_notify(&tmc2130_chopper_config[axis], eeprom_chopper_config, sizeof(tmc2130_chopper_config[0]));
         motor_currents_eeprom_save_settings(axis);
+        homing_feedrate_eeprom_save_settings(axis);
     );
 	MENU_ITEM_BACK_P(_T(MSG_CUSTOM_STEPPERS));
     // See https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2130_datasheet_rev1.16.pdf
@@ -2704,6 +2708,7 @@ void _lcd_chopper_config_set(AxisEnum axis) {
     MENU_ITEM_EDIT_int3_P(_T(MSG_SYNC), &_md->sync, 0, 7);
     MENU_ITEM_EDIT_int3_P(_T(MSG_IRUN), &_md->irun, 0, 31);
     MENU_ITEM_EDIT_int3_P(_T(MSG_IHOLD), &_md->ihold, 0, 31);
+    MENU_ITEM_EDIT_int3_P(_T(MSG_HOMING_FEEDRATE), &_md->homing_feedrate, 0, 1092); // 0-1092 mm/s (0-65520 mm/min)
 	MENU_END();
 }
 

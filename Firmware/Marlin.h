@@ -225,6 +225,8 @@ extern HeatingStatus heating_status;
 
 extern bool fans_check_enabled;
 extern float homing_feedrate[]; // Cannot be constexpr as we need ability to change it
+extern void homing_feedrate_eeprom_load_settings();
+extern void homing_feedrate_eeprom_save_settings(uint8_t axis);
 extern uint8_t axis_relative_modes;
 extern float feedrate;
 extern int feedmultiply;

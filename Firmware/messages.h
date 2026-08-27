@@ -327,6 +327,7 @@ extern const char MSG_TBL [];
 extern const char MSG_SYNC [];
 extern const char MSG_IRUN [];
 extern const char MSG_IHOLD [];
+extern const char MSG_HOMING_FEEDRATE [];
 extern const char MSG_X_CHOPPER_CFG [];
 extern const char MSG_Y_CHOPPER_CFG [];
 extern const char MSG_Z_CHOPPER_CFG [];
